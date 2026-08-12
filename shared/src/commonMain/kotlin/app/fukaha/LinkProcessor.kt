@@ -8,9 +8,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -30,6 +28,7 @@ class LinkProcessor(
     suspend fun prepare(
         sharedText: String,
         settings: FukahaSettings,
+        health: Map<String, EmbedHealthStatus> = emptyMap(),
     ): PreparedLink? {
         val extracted = UrlCleaner.extractFirstUrl(sharedText) ?: return null
         val resolved = if (settings.resolveShortLinks && UrlCleaner.isShortLink(extracted)) {
@@ -39,19 +38,32 @@ class LinkProcessor(
         }
         val detected = catalog.detect(resolved)
         val preferred = detected.platformKey?.let { settings.preferredFixers[it] }
-        val embedUrl = catalog.rewriteToEmbed(detected.cleanedUrl, preferred)
+        val embedUrl = catalog.rewriteToEmbed(detected.cleanedUrl, preferred, health)
+        val embedHealth = embedUrl?.let { url ->
+            val hostOnly = UrlCleaner.hostOf(url)
+            if (hostOnly != null) {
+                health[EmbedHealthKeys.normalize(hostOnly)] ?: EmbedHealthStatus.Unknown
+            } else {
+                EmbedHealthStatus.Unknown
+            }
+        } ?: EmbedHealthStatus.Unknown
         return PreparedLink(
             detected = detected,
             embedUrl = embedUrl,
+            embedHealth = embedHealth,
         )
     }
 
     fun cleanUrl(url: String): String = UrlCleaner.clean(url)
 
-    fun embedUrl(url: String, settings: FukahaSettings): String? {
+    fun embedUrl(
+        url: String,
+        settings: FukahaSettings,
+        health: Map<String, EmbedHealthStatus> = emptyMap(),
+    ): String? {
         val detected = catalog.detect(url)
         val preferred = detected.platformKey?.let { settings.preferredFixers[it] }
-        return catalog.rewriteToEmbed(detected.cleanedUrl, preferred)
+        return catalog.rewriteToEmbed(detected.cleanedUrl, preferred, health)
     }
 
     suspend fun resolveRedirect(url: String): String? = runCatching {
@@ -100,6 +112,7 @@ class LinkProcessor(
 data class PreparedLink(
     val detected: DetectedLink,
     val embedUrl: String?,
+    val embedHealth: EmbedHealthStatus = EmbedHealthStatus.Unknown,
 )
 
 sealed class MediaDownloadResult {
@@ -118,34 +131,43 @@ class CobaltClient(
     private val apiKey: String = "",
 ) {
     suspend fun download(url: String, cacheDirPath: String): MediaDownloadResult {
+        if (baseUrl.isBlank()) {
+            return MediaDownloadResult.Failure("cobalt.base_url.missing")
+        }
         return try {
+            // Cobalt requires exact Accept/Content-Type values (no charset=UTF-8).
+            // See https://github.com/imputnet/cobalt/blob/main/docs/api.md
             val response = httpClient.post("$baseUrl/") {
-                contentType(ContentType.Application.Json)
                 header(HttpHeaders.Accept, "application/json")
+                header(HttpHeaders.ContentType, "application/json")
                 if (apiKey.isNotBlank()) {
                     header(HttpHeaders.Authorization, "Api-Key $apiKey")
                 }
                 setBody(CobaltRequest(url = url))
             }
-            if (response.status.value !in 200..299) {
-                return MediaDownloadResult.Failure("Cobalt HTTP ${response.status.value}")
-            }
-            val body: CobaltResponse = response.body()
-            when (body.status) {
-                "error" -> MediaDownloadResult.Failure(
-                    body.error?.code ?: body.text ?: "Cobalt error",
+            // Cobalt returns JSON errors with HTTP 400 for almost all failures (including auth).
+            val body = runCatching { response.body<CobaltResponse>() }.getOrNull()
+            when {
+                body?.status == "error" || response.status.value !in 200..299 -> {
+                    val code = body?.error?.code ?: body?.text
+                    MediaDownloadResult.Failure(
+                        code ?: "Cobalt HTTP ${response.status.value}",
+                    )
+                }
+                body == null -> MediaDownloadResult.Failure(
+                    "Cobalt HTTP ${response.status.value}",
                 )
-                "picker" -> {
+                body.status == "picker" -> {
                     val first = body.picker?.firstOrNull()
                         ?: return MediaDownloadResult.Failure("No media in picker response")
                     saveRemoteFile(first.url, cacheDirPath, first.type)
                 }
-                "tunnel", "redirect" -> {
+                body.status == "tunnel" || body.status == "redirect" -> {
                     val mediaUrl = body.url
                         ?: return MediaDownloadResult.Failure("No media URL in Cobalt response")
                     saveRemoteFile(mediaUrl, cacheDirPath, guessExtensionFromUrl(mediaUrl))
                 }
-                "local-processing" -> {
+                body.status == "local-processing" -> {
                     // Best-effort: download the first tunnel stream (full client-side remux is out of scope).
                     val mediaUrl = body.tunnel?.firstOrNull()
                         ?: return MediaDownloadResult.Failure("No tunnel URL in local-processing response")

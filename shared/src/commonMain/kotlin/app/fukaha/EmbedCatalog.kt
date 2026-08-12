@@ -36,6 +36,7 @@ class EmbedCatalog(
     fun rewriteToEmbed(
         url: String,
         preferredFixerHost: String? = null,
+        health: Map<String, EmbedHealthStatus> = emptyMap(),
     ): String? {
         val cleaned = UrlCleaner.clean(url)
         val key = detectPlatformKey(cleaned) ?: return null
@@ -53,7 +54,12 @@ class EmbedCatalog(
             }
         }
 
-        val service = preferred ?: defaultService(key, services) ?: services.first()
+        val service = EmbedHealthPolicy.pickService(
+            services = services,
+            preferred = preferred,
+            default = defaultService(key, services),
+            health = health,
+        ) ?: return null
         return replaceHost(cleaned, service.normalizedHost())
     }
 

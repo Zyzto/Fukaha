@@ -7,6 +7,7 @@ class IosSettingsStore(
         ?: NSUserDefaults.standardUserDefaults,
 ) : SettingsStore {
     override suspend fun get(): FukahaSettings {
+        migrateCobaltPublicDefaultIfNeeded()
         val action = defaults.stringForKey(KEY_DEFAULT_ACTION)?.let {
             runCatching { ShareAction.valueOf(it) }.getOrNull()
         } ?: ShareAction.Ask
@@ -32,11 +33,11 @@ class IosSettingsStore(
             } else {
                 defaults.boolForKey(KEY_DELETE_CACHE)
             },
-        )
+        ).withDownloadClamped()
     }
 
     override suspend fun update(transform: (FukahaSettings) -> FukahaSettings) {
-        val next = transform(get())
+        val next = transform(get()).withDownloadClamped()
         defaults.setObject(next.defaultAction.name, KEY_DEFAULT_ACTION)
         defaults.setObject(serializeFixers(next.preferredFixers), KEY_PREFERRED_FIXERS)
         defaults.setObject(next.cobaltBaseUrl, KEY_COBALT)
@@ -45,6 +46,21 @@ class IosSettingsStore(
         defaults.setObject(next.language.name, KEY_LANGUAGE)
         defaults.setObject(next.theme.name, KEY_THEME)
         defaults.setBool(next.deleteCacheAfterShare, KEY_DELETE_CACHE)
+        defaults.synchronize()
+    }
+
+    private fun migrateCobaltPublicDefaultIfNeeded() {
+        if (defaults.boolForKey(KEY_COBALT_PUBLIC_CLEARED)) return
+        val stored = defaults.stringForKey(KEY_COBALT)
+        if (stored == null || FukahaSettings.isLegacyPublicCobaltBaseUrl(stored)) {
+            defaults.setObject(FukahaSettings.DEFAULT_COBALT_BASE_URL, KEY_COBALT)
+        }
+        if (defaults.stringForKey(KEY_DEFAULT_ACTION) == ShareAction.Download.name &&
+            !FukahaSettings.isValidCobaltBaseUrl(defaults.stringForKey(KEY_COBALT).orEmpty())
+        ) {
+            defaults.setObject(ShareAction.Ask.name, KEY_DEFAULT_ACTION)
+        }
+        defaults.setBool(true, KEY_COBALT_PUBLIC_CLEARED)
         defaults.synchronize()
     }
 
@@ -103,5 +119,6 @@ class IosSettingsStore(
         private const val KEY_LANGUAGE = "language"
         private const val KEY_THEME = "theme"
         private const val KEY_DELETE_CACHE = "delete_cache_after_share"
+        private const val KEY_COBALT_PUBLIC_CLEARED = "cobalt_public_default_cleared"
     }
 }

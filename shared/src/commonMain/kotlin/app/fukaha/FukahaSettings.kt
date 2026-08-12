@@ -29,8 +29,46 @@ data class FukahaSettings(
     val theme: AppTheme = AppTheme.System,
     val deleteCacheAfterShare: Boolean = true,
 ) {
+    /** True when a non-blank http(s) Cobalt instance URL is configured. */
+    val hasValidCobaltBaseUrl: Boolean
+        get() = isValidCobaltBaseUrl(cobaltBaseUrl)
+
+    /**
+     * Download requires a self-hosted Cobalt URL. If the setting is still Download
+     * with an empty/invalid URL, treat it as Ask.
+     */
+    fun effectiveDefaultAction(): ShareAction =
+        if (defaultAction == ShareAction.Download && !hasValidCobaltBaseUrl) {
+            ShareAction.Ask
+        } else {
+            defaultAction
+        }
+
+    /** Clamp Download → Ask when Cobalt is not configured. */
+    fun withDownloadClamped(): FukahaSettings =
+        if (defaultAction == ShareAction.Download && !hasValidCobaltBaseUrl) {
+            copy(defaultAction = ShareAction.Ask)
+        } else {
+            this
+        }
+
     companion object {
-        /** Replace with your own Cobalt instance — public api.cobalt.tools is bot-protected. */
-        const val DEFAULT_COBALT_BASE_URL = "https://api.cobalt.tools"
+        /** Empty until the user sets their own Cobalt instance. */
+        const val DEFAULT_COBALT_BASE_URL = ""
+
+        /** Former built-in default — public API is not usable by third-party apps. */
+        const val LEGACY_PUBLIC_COBALT_BASE_URL = "https://api.cobalt.tools"
+
+        fun isValidCobaltBaseUrl(url: String): Boolean {
+            val trimmed = url.trim()
+            if (trimmed.isEmpty()) return false
+            return trimmed.startsWith("http://", ignoreCase = true) ||
+                trimmed.startsWith("https://", ignoreCase = true)
+        }
+
+        fun isLegacyPublicCobaltBaseUrl(url: String): Boolean {
+            val normalized = url.trim().trimEnd('/')
+            return normalized.equals(LEGACY_PUBLIC_COBALT_BASE_URL, ignoreCase = true)
+        }
     }
 }

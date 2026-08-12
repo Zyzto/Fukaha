@@ -28,10 +28,13 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
         val deleteCacheAfterShare = booleanPreferencesKey("delete_cache_after_share")
         /** One-time: old builds defaulted language writes to English; prefer System now. */
         val languageFollowsSystemMigrated = booleanPreferencesKey("language_follows_system_migrated")
+        /** One-time: clear former public api.cobalt.tools default. */
+        val cobaltPublicDefaultCleared = booleanPreferencesKey("cobalt_public_default_cleared")
     }
 
     override suspend fun get(): FukahaSettings {
         migrateLanguageDefaultIfNeeded()
+        migrateCobaltPublicDefaultIfNeeded()
         return context.fukahaDataStore.data.map { prefs ->
             FukahaSettings(
                 defaultAction = prefs[Keys.defaultAction]?.let { runCatching { ShareAction.valueOf(it) }.getOrNull() }
@@ -47,7 +50,7 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
                 theme = prefs[Keys.theme]?.let { runCatching { AppTheme.valueOf(it) }.getOrNull() }
                     ?: AppTheme.System,
                 deleteCacheAfterShare = prefs[Keys.deleteCacheAfterShare] ?: true,
-            )
+            ).withDownloadClamped()
         }.first()
     }
 
@@ -63,8 +66,24 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
         }
     }
 
+    private suspend fun migrateCobaltPublicDefaultIfNeeded() {
+        context.fukahaDataStore.edit { prefs ->
+            if (prefs[Keys.cobaltPublicDefaultCleared] == true) return@edit
+            val stored = prefs[Keys.cobaltBaseUrl]
+            if (stored == null || FukahaSettings.isLegacyPublicCobaltBaseUrl(stored)) {
+                prefs[Keys.cobaltBaseUrl] = FukahaSettings.DEFAULT_COBALT_BASE_URL
+            }
+            if (prefs[Keys.defaultAction] == ShareAction.Download.name &&
+                !FukahaSettings.isValidCobaltBaseUrl(prefs[Keys.cobaltBaseUrl].orEmpty())
+            ) {
+                prefs[Keys.defaultAction] = ShareAction.Ask.name
+            }
+            prefs[Keys.cobaltPublicDefaultCleared] = true
+        }
+    }
+
     override suspend fun update(transform: (FukahaSettings) -> FukahaSettings) {
-        val next = transform(get())
+        val next = transform(get()).withDownloadClamped()
         context.fukahaDataStore.edit { prefs ->
             prefs[Keys.defaultAction] = next.defaultAction.name
             prefs[Keys.preferredFixers] = json.encodeToString(next.preferredFixers)

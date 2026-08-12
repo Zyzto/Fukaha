@@ -1,20 +1,30 @@
 package app.fukaha.android.share
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,18 +33,20 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import app.fukaha.EmbedHealthStatus
 import app.fukaha.PreparedLink
 import app.fukaha.R
 
@@ -45,68 +57,76 @@ fun ShareSheet(
     downloading: Boolean,
     error: String?,
     prepared: PreparedLink?,
+    mediaDownloadEnabled: Boolean = true,
     onDismiss: () -> Unit,
     onShareCleaned: () -> Unit,
     onShareEmbed: () -> Unit,
     onShareMedia: () -> Unit,
+    onCopyOriginal: () -> Unit,
     onCopyCleaned: () -> Unit,
     onCopyEmbed: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val colors = MaterialTheme.colorScheme
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = colors.surfaceContainerLow,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(top = 4.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Text(
-                text = stringResource(R.string.share_sheet_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = colors.onSurface,
+                )
+                Text(
+                    text = stringResource(R.string.share_sheet_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.onSurfaceVariant,
+                )
+            }
 
             when {
                 loading || downloading -> {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 24.dp),
+                            .padding(vertical = 36.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(26.dp))
                         Text(
                             if (downloading) {
                                 stringResource(R.string.downloading)
                             } else {
                                 stringResource(R.string.preparing)
                             },
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.titleMedium,
                         )
                     }
                 }
                 error != null -> {
                     Surface(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = MaterialTheme.shapes.medium,
+                        color = colors.errorContainer,
+                        shape = MaterialTheme.shapes.large,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
                             text = error,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyMedium,
+                            color = colors.onErrorContainer,
+                            modifier = Modifier.padding(18.dp),
+                            style = MaterialTheme.typography.bodyLarge,
                         )
                     }
                     TextButton(onClick = onDismiss) {
@@ -115,131 +135,69 @@ fun ShareSheet(
                 }
                 prepared != null -> {
                     val link = prepared
-                    SuggestionChip(
-                        onClick = {},
-                        enabled = false,
-                        label = {
-                            Text(
-                                stringResource(
-                                    R.string.platform_label,
-                                    link.detected.platformName
-                                        ?: stringResource(R.string.unknown_platform),
-                                ),
-                            )
-                        },
-                        icon = {
-                            Icon(
-                                Icons.Outlined.Link,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        },
+                    val platform = link.detected.platformName
+                        ?: stringResource(R.string.unknown_platform)
+
+                    OriginalLinkBlock(
+                        url = link.detected.originalUrl,
+                        platform = platform,
+                        onCopy = onCopyOriginal,
                     )
 
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        shape = MaterialTheme.shapes.medium,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(
-                                text = stringResource(R.string.cleaned_preview),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    LinkActionRow(
+                        title = stringResource(R.string.cleaned_preview),
+                        url = link.detected.cleanedUrl,
+                        sectionIcon = Icons.Outlined.CleaningServices,
+                        onShare = onShareCleaned,
+                        onCopy = onCopyCleaned,
+                    )
+
+                    if (link.embedUrl != null) {
+                        LinkActionRow(
+                            title = if (link.embedHealth == EmbedHealthStatus.Dead) {
+                                stringResource(R.string.embed_preview_unreachable)
+                            } else {
+                                stringResource(R.string.embed_preview)
+                            },
+                            url = link.embedUrl!!,
+                            sectionIcon = Icons.Outlined.Visibility,
+                            onShare = onShareEmbed,
+                            onCopy = onCopyEmbed,
+                            titleTrailing = if (link.embedHealth == EmbedHealthStatus.Dead) {
+                                stringResource(R.string.embed_health_dead)
+                            } else {
+                                null
+                            },
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilledTonalButton(
+                            onClick = onShareMedia,
+                            enabled = mediaDownloadEnabled,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = MaterialTheme.shapes.large,
+                        ) {
+                            Icon(
+                                Icons.Outlined.Download,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
                             )
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.width(10.dp))
                             Text(
-                                text = link.detected.cleanedUrl,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = stringResource(R.string.share_media),
+                                style = MaterialTheme.typography.titleSmall,
                             )
-                            if (link.embedUrl != null) {
-                                Spacer(Modifier.height(10.dp))
-                                Text(
-                                    text = stringResource(R.string.embed_preview),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = link.embedUrl!!,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
                         }
-                    }
-
-                    Button(
-                        onClick = onShareCleaned,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                    ) {
-                        Icon(
-                            Icons.Outlined.Share,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.IconSize),
-                        )
-                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text(stringResource(R.string.share_cleaned))
-                    }
-
-                    FilledTonalButton(
-                        onClick = onShareEmbed,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = link.embedUrl != null,
-                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                    ) {
-                        Icon(
-                            Icons.Outlined.Movie,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.IconSize),
-                        )
-                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text(stringResource(R.string.share_embed))
-                    }
-
-                    OutlinedButton(
-                        onClick = onShareMedia,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                    ) {
-                        Icon(
-                            Icons.Outlined.Download,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.IconSize),
-                        )
-                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
-                        Text(stringResource(R.string.share_media))
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AssistChip(
-                            onClick = onCopyCleaned,
-                            label = { Text(stringResource(R.string.copy_cleaned)) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Outlined.ContentCopy,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AssistChipDefaultsIconSize),
-                                )
-                            },
-                        )
-                        AssistChip(
-                            onClick = onCopyEmbed,
-                            enabled = link.embedUrl != null,
-                            label = { Text(stringResource(R.string.copy_embed)) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Outlined.ContentCopy,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(AssistChipDefaultsIconSize),
-                                )
-                            },
-                        )
+                        if (!mediaDownloadEnabled) {
+                            Text(
+                                text = stringResource(R.string.share_media_disabled_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -247,18 +205,156 @@ fun ShareSheet(
     }
 }
 
-private val AssistChipDefaultsIconSize = 18.dp
+@Composable
+private fun SectionLabel(
+    text: String,
+    icon: ImageVector,
+    trailing: String? = null,
+) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = colors.onSurfaceVariant,
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.onSurfaceVariant,
+        )
+        if (trailing != null) {
+            Text(
+                text = trailing,
+                style = MaterialTheme.typography.labelLarge,
+                color = colors.primary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun OriginalLinkBlock(
+    url: String,
+    platform: String,
+    onCopy: () -> Unit,
+) {
+    LinkActionRow(
+        title = stringResource(R.string.original_preview),
+        url = url,
+        sectionIcon = Icons.Outlined.Public,
+        titleTrailing = platform,
+        onShare = null,
+        onCopy = onCopy,
+    )
+}
+
+@Composable
+private fun LinkActionRow(
+    title: String,
+    url: String,
+    sectionIcon: ImageVector,
+    onShare: (() -> Unit)?,
+    onCopy: () -> Unit,
+    titleTrailing: String? = null,
+) {
+    val colors = MaterialTheme.colorScheme
+    val shareShape = RoundedCornerShape(14.dp)
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionLabel(text = title, icon = sectionIcon, trailing = titleTrailing)
+
+        // Keep share on the physical right in both LTR and RTL locales.
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = colors.surface,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Icon(
+                        sectionIcon,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .offset(x = if (onShare != null) (-56).dp else 8.dp)
+                            .size(72.dp)
+                            .alpha(0.07f),
+                        tint = colors.primary,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(MaterialTheme.shapes.medium)
+                                .clickable(onClick = onCopy)
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.ContentCopy,
+                                contentDescription = stringResource(R.string.action_copy_short),
+                                modifier = Modifier.size(20.dp),
+                                tint = colors.primary,
+                            )
+                            Text(
+                                text = url,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colors.onSurface,
+                                softWrap = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+
+                        if (onShare != null) {
+                            Button(
+                                onClick = onShare,
+                                modifier = Modifier
+                                    .height(52.dp)
+                                    .widthIn(min = 64.dp),
+                                shape = shareShape,
+                                contentPadding = PaddingValues(horizontal = 18.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = colors.primary,
+                                    contentColor = colors.onPrimary,
+                                ),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Share,
+                                    contentDescription = stringResource(R.string.action_share_short),
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun AutoActionProgress() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(40.dp),
+            .padding(48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        CircularProgressIndicator()
+        CircularProgressIndicator(modifier = Modifier.size(36.dp))
         Text(
             text = stringResource(R.string.preparing),
             style = MaterialTheme.typography.titleMedium,

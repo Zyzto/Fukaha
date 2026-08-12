@@ -7,9 +7,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,13 +32,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ShareActivity : ComponentActivity() {
+class ShareActivity : AppCompatActivity() {
+    companion object {
+        const val EXTRA_FORCE_ASK = "app.fukaha.FORCE_ASK"
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val sharedText = intent.extractSharedText()
+        val forceAsk = intent.getBooleanExtra(EXTRA_FORCE_ASK, false)
         val app = application.fukaha()
 
         setContent {
@@ -47,6 +52,8 @@ class ShareActivity : ComponentActivity() {
             var loading by remember { mutableStateOf(true) }
             var downloading by remember { mutableStateOf(false) }
             var error by remember { mutableStateOf<String?>(null) }
+            // After auto Download fails, drop into the share sheet (no URL fallback).
+            var showSheetAfterAutoFail by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
 
             LaunchedEffect(sharedText) {
@@ -57,7 +64,8 @@ class ShareActivity : ComponentActivity() {
                     return@LaunchedEffect
                 }
                 prepared = withContext(Dispatchers.IO) {
-                    app.bridge.prepare(sharedText, settings)
+                    val health = app.healthStore.get().statuses
+                    app.bridge.prepare(sharedText, settings, health)
                 }
                 if (prepared == null) {
                     error = getString(R.string.no_link)
@@ -66,7 +74,8 @@ class ShareActivity : ComponentActivity() {
                 }
                 loading = false
 
-                when (settings.defaultAction) {
+                val action = if (forceAsk) ShareAction.Ask else settings.effectiveDefaultAction()
+                when (action) {
                     ShareAction.Ask -> Unit
                     ShareAction.Clean -> {
                         shareText(prepared!!.detected.cleanedUrl)
@@ -95,11 +104,10 @@ class ShareActivity : ComponentActivity() {
                             is MediaDownloadResult.Failure -> {
                                 Toast.makeText(
                                     this@ShareActivity,
-                                    "${getString(R.string.download_failed)}: ${result.message}",
-                                    Toast.LENGTH_SHORT,
+                                    downloadFailureMessage(result.message),
+                                    Toast.LENGTH_LONG,
                                 ).show()
-                                shareText(prepared!!.embedUrl ?: prepared!!.detected.cleanedUrl)
-                                finish()
+                                showSheetAfterAutoFail = true
                             }
                         }
                     }
@@ -107,7 +115,13 @@ class ShareActivity : ComponentActivity() {
             }
 
             FukahaTheme(theme = settings.theme) {
-                if (settings.defaultAction != ShareAction.Ask && error == null) {
+                val autoAction = settings.effectiveDefaultAction()
+                if (
+                    !forceAsk &&
+                    autoAction != ShareAction.Ask &&
+                    error == null &&
+                    !showSheetAfterAutoFail
+                ) {
                     AutoActionProgress()
                 } else {
                     ShareSheet(
@@ -115,6 +129,7 @@ class ShareActivity : ComponentActivity() {
                         downloading = downloading,
                         error = error,
                         prepared = prepared,
+                        mediaDownloadEnabled = settings.hasValidCobaltBaseUrl,
                         onDismiss = { finish() },
                         onShareCleaned = {
                             prepared?.let {
@@ -149,23 +164,19 @@ class ShareActivity : ComponentActivity() {
                                         finish()
                                     }
                                     is MediaDownloadResult.Failure -> {
+                                        // Keep the sheet open so the error is visible; do not
+                                        // silently share an embed URL after a media-file tap.
                                         Toast.makeText(
                                             this@ShareActivity,
-                                            "${getString(R.string.download_failed)}: ${result.message}",
+                                            downloadFailureMessage(result.message),
                                             Toast.LENGTH_LONG,
                                         ).show()
-                                        if (link.embedUrl != null) {
-                                            Toast.makeText(
-                                                this@ShareActivity,
-                                                getString(R.string.fallback_embed),
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
-                                            shareText(link.embedUrl!!)
-                                            finish()
-                                        }
                                     }
                                 }
                             }
+                        },
+                        onCopyOriginal = {
+                            prepared?.detected?.originalUrl?.let { copyText(it) }
                         },
                         onCopyCleaned = {
                             prepared?.detected?.cleanedUrl?.let { copyText(it) }
@@ -183,6 +194,18 @@ class ShareActivity : ComponentActivity() {
         val dir = File(cacheDir, "fukaha")
         if (!dir.exists()) dir.mkdirs()
         return dir
+    }
+
+    private fun downloadFailureMessage(raw: String): String {
+        val lower = raw.lowercase()
+        val looksLikeAuth = "auth" in lower || "jwt" in lower ||
+            "api.key" in lower || "api-key" in lower || "turnstile" in lower ||
+            "base_url" in lower
+        return if (looksLikeAuth) {
+            getString(R.string.cobalt_auth_required)
+        } else {
+            "${getString(R.string.download_failed)}: $raw"
+        }
     }
 
     private fun shareText(text: String) {

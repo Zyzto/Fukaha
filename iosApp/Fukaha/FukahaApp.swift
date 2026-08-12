@@ -42,7 +42,7 @@ struct ContentView: View {
 
 struct SettingsSnapshot {
     var defaultAction: String = "Ask"
-    var cobaltBaseUrl: String = "https://api.cobalt.tools"
+    var cobaltBaseUrl: String = ""
     var cobaltApiKey: String = ""
     var resolveShortLinks: Bool = true
     var deleteCacheAfterShare: Bool = true
@@ -51,12 +51,22 @@ struct SettingsSnapshot {
     var preferredFixers: [String: String] = [:]
 
     static let suite = UserDefaults(suiteName: IosSettingsKeys.shared.APP_GROUP) ?? .standard
+    private static let legacyPublicCobalt = "https://api.cobalt.tools"
+    private static let cobaltPublicClearedKey = "cobalt_public_default_cleared"
+
+    var hasValidCobaltBaseUrl: Bool {
+        let trimmed = cobaltBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let lower = trimmed.lowercased()
+        return lower.hasPrefix("http://") || lower.hasPrefix("https://")
+    }
 
     static func load() -> SettingsSnapshot {
         let d = suite
+        migrateCobaltPublicDefaultIfNeeded(d)
         var s = SettingsSnapshot()
         s.defaultAction = d.string(forKey: IosSettingsKeys.shared.DEFAULT_ACTION) ?? "Ask"
-        s.cobaltBaseUrl = d.string(forKey: IosSettingsKeys.shared.COBALT) ?? s.cobaltBaseUrl
+        s.cobaltBaseUrl = d.string(forKey: IosSettingsKeys.shared.COBALT) ?? ""
         s.cobaltApiKey = d.string(forKey: IosSettingsKeys.shared.COBALT_API_KEY) ?? ""
         if d.object(forKey: IosSettingsKeys.shared.RESOLVE_SHORT) != nil {
             s.resolveShortLinks = d.bool(forKey: IosSettingsKeys.shared.RESOLVE_SHORT)
@@ -75,12 +85,39 @@ struct SettingsSnapshot {
                 }
             )
         }
+        if s.defaultAction == "Download" && !s.hasValidCobaltBaseUrl {
+            s.defaultAction = "Ask"
+        }
         return s
+    }
+
+    private static func migrateCobaltPublicDefaultIfNeeded(_ d: UserDefaults) {
+        if d.bool(forKey: cobaltPublicClearedKey) { return }
+        let stored = d.string(forKey: IosSettingsKeys.shared.COBALT)
+        let normalized = stored?.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if stored == nil || normalized?.caseInsensitiveCompare(legacyPublicCobalt) == .orderedSame {
+            d.set("", forKey: IosSettingsKeys.shared.COBALT)
+        }
+        let url = d.string(forKey: IosSettingsKeys.shared.COBALT) ?? ""
+        let valid = {
+            let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = trimmed.lowercased()
+            return !trimmed.isEmpty && (lower.hasPrefix("http://") || lower.hasPrefix("https://"))
+        }()
+        if d.string(forKey: IosSettingsKeys.shared.DEFAULT_ACTION) == "Download" && !valid {
+            d.set("Ask", forKey: IosSettingsKeys.shared.DEFAULT_ACTION)
+        }
+        d.set(true, forKey: cobaltPublicClearedKey)
     }
 
     func save() {
         let d = Self.suite
-        d.set(defaultAction, forKey: IosSettingsKeys.shared.DEFAULT_ACTION)
+        var action = defaultAction
+        if action == "Download" && !hasValidCobaltBaseUrl {
+            action = "Ask"
+        }
+        d.set(action, forKey: IosSettingsKeys.shared.DEFAULT_ACTION)
         d.set(cobaltBaseUrl, forKey: IosSettingsKeys.shared.COBALT)
         d.set(cobaltApiKey, forKey: IosSettingsKeys.shared.COBALT_API_KEY)
         d.set(resolveShortLinks, forKey: IosSettingsKeys.shared.RESOLVE_SHORT)
@@ -94,6 +131,7 @@ struct SettingsSnapshot {
 
 struct SettingsView: View {
     @Binding var settings: SettingsSnapshot
+    @State private var cobaltExpanded = false
     private let facade = FukahaIosFacade()
     private var isArabic: Bool {
         switch settings.language {
@@ -105,12 +143,15 @@ struct SettingsView: View {
     }
 
     private var actionOptions: [(id: String, label: String)] {
-        [
+        var options = [
             ("Ask", isArabic ? "اسأل في كل مرة" : "Ask each time"),
             ("Clean", isArabic ? "رابط نظيف" : "Clean link"),
             ("Embed", isArabic ? "رابط معاينة" : "Embed link"),
-            ("Download", isArabic ? "تحميل الوسائط" : "Download media"),
         ]
+        if settings.hasValidCobaltBaseUrl {
+            options.append(("Download", isArabic ? "تحميل الوسائط" : "Download media"))
+        }
+        return options
     }
 
     var body: some View {
@@ -122,20 +163,33 @@ struct SettingsView: View {
                             Text(option.label).tag(option.id)
                         }
                     }
+                    if !settings.hasValidCobaltBaseUrl {
+                        Text(isArabic ? "تحميل الوسائط" : "Download media")
+                            .foregroundStyle(.tertiary)
+                        Text(isArabic
+                             ? "عيّن عنوان Cobalt في تحميل الوسائط أدناه."
+                             : "Set your Cobalt URL in Media download below.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Section(isArabic ? "الشبكة" : "Network") {
                     Toggle(isArabic ? "تتبّع الروابط المختصرة" : "Resolve short links", isOn: $settings.resolveShortLinks)
-                    TextField(isArabic ? "عنوان خادم Cobalt" : "Cobalt API base URL", text: $settings.cobaltBaseUrl)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    TextField(isArabic ? "مفتاح Cobalt (اختياري)" : "Cobalt API key (optional)", text: $settings.cobaltApiKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    Text(isArabic
-                         ? "استخدم خادم Cobalt الخاص بك؛ فالخدمة العامة محمية ضد الروبوتات."
-                         : "Use your own Cobalt instance; the public API is bot-protected.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    DisclosureGroup(isExpanded: $cobaltExpanded) {
+                        Text(isArabic
+                             ? "يحتاج تحميل الوسائط إلى عنوان خادم Cobalt تستضيفه بنفسك (ومفتاح API إن طلبه خادمك). واجهة cobalt.tools العامة لا تعمل مع هذا التطبيق."
+                             : "Media download needs your own self-hosted Cobalt instance URL (and API key if your instance requires one). The public cobalt.tools API will not work with this app.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        TextField(isArabic ? "عنوان خادم Cobalt" : "Cobalt instance URL", text: $settings.cobaltBaseUrl)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        TextField(isArabic ? "مفتاح Cobalt (اختياري)" : "Cobalt API key (optional)", text: $settings.cobaltApiKey)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    } label: {
+                        Text(isArabic ? "تحميل الوسائط" : "Media download")
+                    }
                     Toggle(isArabic ? "حذف الملفات المؤقتة بعد المشاركة" : "Delete cache after share", isOn: $settings.deleteCacheAfterShare)
                 }
                 Section(isArabic ? "المظهر" : "Appearance") {
@@ -168,7 +222,12 @@ struct SettingsView: View {
             }
             .navigationTitle(isArabic ? "الإعدادات" : "Settings")
             .onChange(of: settings.defaultAction) { _, _ in settings.save() }
-            .onChange(of: settings.cobaltBaseUrl) { _, _ in settings.save() }
+            .onChange(of: settings.cobaltBaseUrl) { _, _ in
+                if settings.defaultAction == "Download" && !settings.hasValidCobaltBaseUrl {
+                    settings.defaultAction = "Ask"
+                }
+                settings.save()
+            }
             .onChange(of: settings.cobaltApiKey) { _, _ in settings.save() }
             .onChange(of: settings.resolveShortLinks) { _, _ in settings.save() }
             .onChange(of: settings.deleteCacheAfterShare) { _, _ in settings.save() }
@@ -225,7 +284,7 @@ struct AboutView: View {
                          : "Embed fixer list based on Lexedia’s public gist. Thanks to the authors of VixBluesky, InstaFix, fxreddit, fxTikTok, BetterTwitFix, and related projects.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Text("v0.2.0").font(.caption)
+                    Text("v0.3.0").font(.caption)
                 }
                 .padding()
             }

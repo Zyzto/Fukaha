@@ -53,11 +53,25 @@ class ShareViewController: UIViewController {
 
         let cleanBtn = makeButton(ar ? "مشاركة الرابط النظيف" : "Share cleaned link", #selector(shareClean))
         let embedBtn = makeButton(ar ? "مشاركة رابط المعاينة" : "Share embed link", #selector(shareEmbed))
-        let mediaBtn = makeButton(ar ? "مشاركة ملف الوسائط" : "Share media file", #selector(shareMedia))
         let cancelBtn = makeButton(ar ? "إلغاء" : "Cancel", #selector(cancel))
 
-        [titleLabel, platformLabel, urlLabel, spinner, statusLabel, cleanBtn, embedBtn, mediaBtn, cancelBtn]
-            .forEach { stack.addArrangedSubview($0) }
+        let mediaBtn = makeButton(ar ? "مشاركة ملف الوسائط" : "Share media file", #selector(shareMedia))
+        mediaBtn.isEnabled = settings.hasValidCobaltBaseUrl
+        let mediaHint = UILabel()
+        mediaHint.font = .preferredFont(forTextStyle: .caption1)
+        mediaHint.textColor = .secondaryLabel
+        mediaHint.numberOfLines = 2
+        mediaHint.text = ar
+            ? "عيّن عنوان Cobalt في الإعدادات أولاً."
+            : "Set Cobalt URL in Settings first."
+        mediaHint.isHidden = settings.hasValidCobaltBaseUrl
+
+        var rows: [UIView] = [titleLabel, platformLabel, urlLabel, spinner, statusLabel, cleanBtn, embedBtn, mediaBtn]
+        if !settings.hasValidCobaltBaseUrl {
+            rows.append(mediaHint)
+        }
+        rows.append(cancelBtn)
+        rows.forEach { stack.addArrangedSubview($0) }
 
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
@@ -147,7 +161,9 @@ class ShareViewController: UIViewController {
         case "Embed":
             shareEmbed()
         case "Download":
-            shareMedia()
+            if settings.hasValidCobaltBaseUrl {
+                shareMedia()
+            }
         default:
             break
         }
@@ -223,7 +239,7 @@ class ShareViewController: UIViewController {
 
 struct SettingsSnapshot {
     var defaultAction: String = "Ask"
-    var cobaltBaseUrl: String = "https://api.cobalt.tools"
+    var cobaltBaseUrl: String = ""
     var cobaltApiKey: String = ""
     var resolveShortLinks: Bool = true
     var deleteCacheAfterShare: Bool = true
@@ -231,12 +247,22 @@ struct SettingsSnapshot {
     var preferredFixers: [String: String] = [:]
 
     static let suite = UserDefaults(suiteName: "group.app.fukaha") ?? .standard
+    private static let legacyPublicCobalt = "https://api.cobalt.tools"
+    private static let cobaltPublicClearedKey = "cobalt_public_default_cleared"
+
+    var hasValidCobaltBaseUrl: Bool {
+        let trimmed = cobaltBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        let lower = trimmed.lowercased()
+        return lower.hasPrefix("http://") || lower.hasPrefix("https://")
+    }
 
     static func load() -> SettingsSnapshot {
         let d = suite
+        migrateCobaltPublicDefaultIfNeeded(d)
         var s = SettingsSnapshot()
         s.defaultAction = d.string(forKey: "default_action") ?? "Ask"
-        s.cobaltBaseUrl = d.string(forKey: "cobalt_base_url") ?? s.cobaltBaseUrl
+        s.cobaltBaseUrl = d.string(forKey: "cobalt_base_url") ?? ""
         s.cobaltApiKey = d.string(forKey: "cobalt_api_key") ?? ""
         if d.object(forKey: "resolve_short_links") != nil {
             s.resolveShortLinks = d.bool(forKey: "resolve_short_links")
@@ -254,6 +280,27 @@ struct SettingsSnapshot {
                 }
             )
         }
+        if s.defaultAction == "Download" && !s.hasValidCobaltBaseUrl {
+            s.defaultAction = "Ask"
+        }
         return s
+    }
+
+    private static func migrateCobaltPublicDefaultIfNeeded(_ d: UserDefaults) {
+        if d.bool(forKey: cobaltPublicClearedKey) { return }
+        let stored = d.string(forKey: "cobalt_base_url")
+        let normalized = stored?.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if stored == nil || normalized?.caseInsensitiveCompare(legacyPublicCobalt) == .orderedSame {
+            d.set("", forKey: "cobalt_base_url")
+        }
+        let url = d.string(forKey: "cobalt_base_url") ?? ""
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+        let valid = !trimmed.isEmpty && (lower.hasPrefix("http://") || lower.hasPrefix("https://"))
+        if d.string(forKey: "default_action") == "Download" && !valid {
+            d.set("Ask", forKey: "default_action")
+        }
+        d.set(true, forKey: cobaltPublicClearedKey)
     }
 }

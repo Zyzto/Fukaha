@@ -2,6 +2,19 @@
 
 All notable changes to Fukaha are documented here.
 
+## [0.3.0] — 2026-08-12
+
+### Added
+- Embed fixer health checks with caching so broken hosts can be avoided
+- About screen credits (GitHub, donate, Lexedia catalog, shenepoy)
+- Collapsible Cobalt / media download settings (no public default URL)
+- Routine theme option and polished Settings / share sheet UI
+- README screenshots (EN/AR)
+
+### Changed
+- Media download actions stay visible but disabled until a valid Cobalt `http(s)` URL is set
+- Fixer picker sheet shows richer service details
+
 ## [0.2.0] — 2026-08-12
 
 ### Fixed

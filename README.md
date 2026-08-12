@@ -26,6 +26,8 @@
   ·
   <a href="#what-you-get">What you get</a>
   ·
+  <a href="#screenshots">Screenshots</a>
+  ·
   <a href="#install">Install</a>
   ·
   <a href="#develop">Develop</a>
@@ -49,7 +51,7 @@
 | **Share sheet** | Appears in Android’s system share menu for text/links — overlay sheet, not a full browser app. |
 | **Clean link** | Strips `utm_*`, `fbclid`, `igshid`, and similar noise; normalizes hosts. |
 | **Embed link** | Rewrites to fixer hosts (vxTwitter, ddinstagram, fxTikTok, …) from [Lexedia’s list](https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f). |
-| **Media file** | Optional download via a Cobalt-compatible API, then re-share as a file. |
+| **Media file** | Optional download via your own Cobalt instance, then re-share as a file. |
 | **Settings** | Default action, per-network fixer, Cobalt URL/key, short-link resolve, EN/AR, theme. |
 | **Lite** | No background sync, no accounts — network only when you share. |
 
@@ -59,6 +61,20 @@
 |--------|-----------|
 | **Ask each time** | Show the sheet (clean / embed / download / copy). |
 | **Clean / Embed / Download** | Run immediately, then open the system share chooser. |
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/share-sheet.png" alt="Share sheet — clean, embed, or download" width="220" />
+  <img src="screenshots/settings.png" alt="Settings" width="220" />
+</p>
+
+<p align="center">
+  <img src="screenshots/fixer-picker.png" alt="Preferred embed fixer picker" width="220" />
+  <img src="screenshots/about.png" alt="About — shenepoy" width="220" />
+</p>
 
 ---
 
@@ -98,7 +114,7 @@ Open **Fukaha** for Settings / About, or share any social URL into it from anoth
 | `composeApp` | Android UI — share sheet + Settings/About |
 | `iosApp` / `iosShareExtension` | SwiftUI Settings + Share Extension (manual Xcode setup) |
 
-**Media download:** set your own Cobalt instance URL (and API key if required) in Settings. The public `api.cobalt.tools` endpoint is bot-protected and not intended for third-party apps.
+**Media download:** set your own self-hosted Cobalt instance URL (and API key if required) under the collapsible Media download section in Settings (collapsed by default). There is no working public default — the public `cobalt.tools` API will not work with this app. Download options stay visible but disabled until a valid `http(s)` instance URL is configured.
 
 ---
 
@@ -124,8 +140,8 @@ Share menu → Fukaha → clean | embed | file → system share again
 Tag a release:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 ---

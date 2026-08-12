@@ -17,7 +17,8 @@ class FukahaBridge(
     fun embed(
         url: String,
         preferredFixerHost: String? = null,
-    ): String? = catalog.rewriteToEmbed(url, preferredFixerHost)
+        health: Map<String, EmbedHealthStatus> = emptyMap(),
+    ): String? = catalog.rewriteToEmbed(url, preferredFixerHost, health)
 
     fun defaultFixer(platformKey: String): String? = catalog.defaultFixerHost(platformKey)
 
@@ -25,8 +26,11 @@ class FukahaBridge(
 
     fun servicesFor(platformKey: String): List<EmbedService> = catalog.activeServices(platformKey)
 
-    suspend fun prepare(text: String, settings: FukahaSettings): PreparedLink? =
-        processor.prepare(text, settings)
+    suspend fun prepare(
+        text: String,
+        settings: FukahaSettings,
+        health: Map<String, EmbedHealthStatus> = emptyMap(),
+    ): PreparedLink? = processor.prepare(text, settings, health)
 
     suspend fun download(
         url: String,
