@@ -8,7 +8,9 @@ Fukaha ships Swift sources for the main app and Share Extension. Wire them to th
 2. Add a Share Extension target `FukahaShare` with Bundle ID `app.fukaha.share`.
 3. Replace generated Swift with:
    - `iosApp/Fukaha/FukahaApp.swift`
+   - `iosApp/Fukaha/en.lproj/InfoPlist.strings` and `ar.lproj/InfoPlist.strings` (localized display name)
    - `iosShareExtension/ShareViewController.swift` + `Info.plist`
+   - `iosShareExtension/en.lproj/InfoPlist.strings` and `ar.lproj/InfoPlist.strings`
 
 ## 2. Link Shared framework
 

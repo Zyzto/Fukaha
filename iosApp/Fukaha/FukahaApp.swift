@@ -18,16 +18,25 @@ struct ContentView: View {
     @State private var tab = 0
     @State private var settings = SettingsSnapshot.load()
 
+    private var isArabic: Bool {
+        switch settings.language {
+        case "Arabic": return true
+        case "English": return false
+        default:
+            return Locale.current.language.languageCode?.identifier == "ar"
+        }
+    }
+
     var body: some View {
         TabView(selection: $tab) {
             SettingsView(settings: $settings)
-                .tabItem { Label(settings.language == "Arabic" ? "الإعدادات" : "Settings", systemImage: "gearshape") }
+                .tabItem { Label(isArabic ? "الإعدادات" : "Settings", systemImage: "gearshape") }
                 .tag(0)
-            AboutView(language: settings.language)
-                .tabItem { Label(settings.language == "Arabic" ? "حول" : "About", systemImage: "info.circle") }
+            AboutView(isArabic: isArabic)
+                .tabItem { Label(isArabic ? "حول" : "About", systemImage: "info.circle") }
                 .tag(1)
         }
-        .environment(\.layoutDirection, settings.language == "Arabic" ? .rightToLeft : .leftToRight)
+        .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
     }
 }
 
@@ -37,7 +46,7 @@ struct SettingsSnapshot {
     var cobaltApiKey: String = ""
     var resolveShortLinks: Bool = true
     var deleteCacheAfterShare: Bool = true
-    var language: String = "English"
+    var language: String = "System"
     var theme: String = "System"
     var preferredFixers: [String: String] = [:]
 
@@ -55,7 +64,7 @@ struct SettingsSnapshot {
         if d.object(forKey: IosSettingsKeys.shared.DELETE_CACHE) != nil {
             s.deleteCacheAfterShare = d.bool(forKey: IosSettingsKeys.shared.DELETE_CACHE)
         }
-        s.language = d.string(forKey: IosSettingsKeys.shared.LANGUAGE) ?? "English"
+        s.language = d.string(forKey: IosSettingsKeys.shared.LANGUAGE) ?? "System"
         s.theme = d.string(forKey: IosSettingsKeys.shared.THEME) ?? "System"
         if let raw = d.string(forKey: IosSettingsKeys.shared.PREFERRED_FIXERS) {
             s.preferredFixers = Dictionary(
@@ -85,42 +94,63 @@ struct SettingsSnapshot {
 
 struct SettingsView: View {
     @Binding var settings: SettingsSnapshot
-    private let actions = ["Ask", "Clean", "Embed", "Download"]
     private let facade = FukahaIosFacade()
+    private var isArabic: Bool {
+        switch settings.language {
+        case "Arabic": return true
+        case "English": return false
+        default:
+            return Locale.current.language.languageCode?.identifier == "ar"
+        }
+    }
+
+    private var actionOptions: [(id: String, label: String)] {
+        [
+            ("Ask", isArabic ? "اسأل في كل مرة" : "Ask each time"),
+            ("Clean", isArabic ? "رابط نظيف" : "Clean link"),
+            ("Embed", isArabic ? "رابط معاينة" : "Embed link"),
+            ("Download", isArabic ? "تحميل الوسائط" : "Download media"),
+        ]
+    }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section(settings.language == "Arabic" ? "الإجراء الافتراضي" : "Default action") {
-                    Picker("Action", selection: $settings.defaultAction) {
-                        ForEach(actions, id: \.self) { Text($0).tag($0) }
+                Section(isArabic ? "الإجراء الافتراضي" : "Default action") {
+                    Picker(isArabic ? "الإجراء" : "Action", selection: $settings.defaultAction) {
+                        ForEach(actionOptions, id: \.id) { option in
+                            Text(option.label).tag(option.id)
+                        }
                     }
                 }
-                Section(settings.language == "Arabic" ? "الشبكة" : "Network") {
-                    Toggle(settings.language == "Arabic" ? "حل الروابط المختصرة" : "Resolve short links", isOn: $settings.resolveShortLinks)
-                    TextField("Cobalt API base URL", text: $settings.cobaltBaseUrl)
+                Section(isArabic ? "الشبكة" : "Network") {
+                    Toggle(isArabic ? "تتبّع الروابط المختصرة" : "Resolve short links", isOn: $settings.resolveShortLinks)
+                    TextField(isArabic ? "عنوان خادم Cobalt" : "Cobalt API base URL", text: $settings.cobaltBaseUrl)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    TextField("Cobalt API key (optional)", text: $settings.cobaltApiKey)
+                    TextField(isArabic ? "مفتاح Cobalt (اختياري)" : "Cobalt API key (optional)", text: $settings.cobaltApiKey)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    Text("Use your own Cobalt instance; the public API is bot-protected.")
+                    Text(isArabic
+                         ? "استخدم خادم Cobalt الخاص بك؛ فالخدمة العامة محمية ضد الروبوتات."
+                         : "Use your own Cobalt instance; the public API is bot-protected.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Toggle(settings.language == "Arabic" ? "حذف الذاكرة بعد المشاركة" : "Delete cache after share", isOn: $settings.deleteCacheAfterShare)
+                    Toggle(isArabic ? "حذف الملفات المؤقتة بعد المشاركة" : "Delete cache after share", isOn: $settings.deleteCacheAfterShare)
                 }
-                Section(settings.language == "Arabic" ? "المظهر" : "Appearance") {
-                    Picker(settings.language == "Arabic" ? "اللغة" : "Language", selection: $settings.language) {
+                Section(isArabic ? "المظهر" : "Appearance") {
+                    Picker(isArabic ? "اللغة" : "Language", selection: $settings.language) {
+                        Text(isArabic ? "حسب النظام" : "System").tag("System")
                         Text("English").tag("English")
                         Text("العربية").tag("Arabic")
                     }
-                    Picker(settings.language == "Arabic" ? "المظهر" : "Theme", selection: $settings.theme) {
-                        Text("System").tag("System")
-                        Text("Light").tag("Light")
-                        Text("Dark").tag("Dark")
+                    Picker(isArabic ? "السمة" : "Theme", selection: $settings.theme) {
+                        Text(isArabic ? "حسب النظام" : "System").tag("System")
+                        Text(isArabic ? "فاتح" : "Light").tag("Light")
+                        Text(isArabic ? "داكن" : "Dark").tag("Dark")
                     }
                 }
-                Section(settings.language == "Arabic" ? "مفضّلات التضمين" : "Preferred embed fixers") {
+                Section(isArabic ? "خدمات المعاينة المفضّلة" : "Preferred embed fixers") {
                     ForEach(Array(facade.platformKeys()), id: \.self) { key in
                         let services = facade.serviceNames(platformKey: key)
                         if !services.isEmpty {
@@ -136,7 +166,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle(settings.language == "Arabic" ? "الإعدادات" : "Settings")
+            .navigationTitle(isArabic ? "الإعدادات" : "Settings")
             .onChange(of: settings.defaultAction) { _, _ in settings.save() }
             .onChange(of: settings.cobaltBaseUrl) { _, _ in settings.save() }
             .onChange(of: settings.cobaltApiKey) { _, _ in settings.save() }
@@ -164,28 +194,42 @@ struct SettingsView: View {
 }
 
 struct AboutView: View {
-    var language: String
+    var isArabic: Bool
+
+    private var appName: String { isArabic ? "فكها" : "Fukaha" }
+    private let siteUrl = URL(string: "https://shenepoy.com")!
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Fukaha · فكها")
+                    Text(appName)
                         .font(.largeTitle.bold())
-                    Text(language == "Arabic"
-                         ? "فكها ينظّف روابط التواصل من التتبع، ويعيد كتابتها لمضيفات تضمين أفضل، أو ينزّل الوسائط لمشاركتها كملف. افتحه من قائمة المشاركة."
+                    Text(isArabic
+                         ? "فكها تزيل التتبع من روابط التواصل الاجتماعي، وتحوّلها إلى مضيفات مناسبة للمعاينة، أو تحمّل الوسائط لمشاركتها كملف. افتحها من قائمة المشاركة في النظام."
                          : "Fukaha cleans tracking from social links, rewrites them to embed-friendly hosts, or downloads media to re-share as a file. Open it from the system share sheet.")
                     Divider()
-                    Text(language == "Arabic"
-                         ? "قائمة مصلحي التضمين مبنية على gist عام لـ Lexedia. شكرًا لمؤلفي المشاريع ذات الصلة."
+                    Link(destination: siteUrl) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(isArabic ? "المطوّر" : "Developer")
+                                .font(.headline)
+                            Text("shenepoy")
+                            Text("shenepoy.com")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Divider()
+                    Text(isArabic
+                         ? "قائمة خدمات المعاينة مأخوذة من قائمة Lexedia العامة. شكراً لمؤلفي VixBluesky وInstaFix وfxreddit وfxTikTok وBetterTwitFix والمشاريع ذات الصلة."
                          : "Embed fixer list based on Lexedia’s public gist. Thanks to the authors of VixBluesky, InstaFix, fxreddit, fxTikTok, BetterTwitFix, and related projects.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Text("v0.1.0").font(.caption)
+                    Text("v0.1.1").font(.caption)
                 }
                 .padding()
             }
-            .navigationTitle(language == "Arabic" ? "حول التطبيق" : "About")
+            .navigationTitle(isArabic ? "حول" : "About")
         }
     }
 }

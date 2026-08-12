@@ -8,6 +8,7 @@ enum class ShareAction {
 }
 
 enum class AppLanguage {
+    System,
     English,
     Arabic,
 }
@@ -24,7 +25,7 @@ data class FukahaSettings(
     val cobaltBaseUrl: String = DEFAULT_COBALT_BASE_URL,
     val cobaltApiKey: String = "",
     val resolveShortLinks: Boolean = true,
-    val language: AppLanguage = AppLanguage.English,
+    val language: AppLanguage = AppLanguage.System,
     val theme: AppTheme = AppTheme.System,
     val deleteCacheAfterShare: Boolean = true,
 ) {

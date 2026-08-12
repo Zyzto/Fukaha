@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Fukaha</string>
-    <string name="app_name_ar">فكها</string>
     <string name="settings">Settings</string>
     <string name="about">About</string>
     <string name="share_cleaned">Share cleaned link</string>
@@ -21,6 +20,7 @@
     <string name="cobalt_api_key">Cobalt API key (optional)</string>
     <string name="cobalt_hint">Use your own Cobalt instance; the public API is bot-protected.</string>
     <string name="language">Language</string>
+    <string name="language_system">System</string>
     <string name="theme">Theme</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
@@ -31,13 +31,21 @@
     <string name="clear_cache_hint">Delete leftover files from past downloads</string>
     <string name="cache_cleared">Media cache cleared</string>
     <string name="preferred_fixers">Preferred embed fixers</string>
+    <string name="preferred_fixer_pick_title">Choose embed fixer</string>
+    <string name="preferred_fixer_pick_subtitle">Used when Fukaha rewrites %1$s links for embeds</string>
+    <string name="preferred_fixer_unknown">No fixer selected</string>
+    <string name="fixer_by_author">by %1$s</string>
+    <string name="fixer_info_link">Open embedder info</string>
     <string name="section_sharing">Sharing</string>
     <string name="section_cobalt">Media download</string>
-    <string name="section_appearance">Appearance</string>
     <string name="section_storage">Storage</string>
     <string name="about_body">Fukaha (فكها) cleans tracking from social links, rewrites them to embed-friendly hosts, or downloads media to re-share as a file. Open it from the system share menu.</string>
     <string name="credits_title">Credits</string>
     <string name="credits">Embed fixer list based on Lexedia\'s public gist. Thanks to the authors of VixBluesky, InstaFix, fxreddit, fxTikTok, BetterTwitFix, and related projects.</string>
+    <string name="developer_title">Developer</string>
+    <string name="developer_name">shenepoy</string>
+    <string name="developer_site">shenepoy.com</string>
+    <string name="developer_site_url">https://shenepoy.com</string>
     <string name="action_ask">Ask each time</string>
     <string name="action_clean">Clean link</string>
     <string name="action_embed">Embed link</string>

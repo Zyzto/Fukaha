@@ -1,6 +1,8 @@
 package app.fukaha
 
 import android.app.Application
+import app.fukaha.android.LocaleHelper
+import kotlinx.coroutines.runBlocking
 
 class FukahaApp : Application() {
     lateinit var settingsStore: AndroidSettingsStore
@@ -13,6 +15,9 @@ class FukahaApp : Application() {
         super.onCreate()
         settingsStore = AndroidSettingsStore(this)
         bridge = FukahaBridge()
+        runBlocking {
+            LocaleHelper.apply(settingsStore.get().language)
+        }
     }
 }
 

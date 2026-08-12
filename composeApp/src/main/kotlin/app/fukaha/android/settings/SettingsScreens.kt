@@ -13,16 +13,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.CleaningServices
-import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
-import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,7 +28,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,10 +35,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import app.fukaha.AppLanguage
-import app.fukaha.AppTheme
 import app.fukaha.EmbedCatalog
 import app.fukaha.FukahaSettings
 import app.fukaha.R
@@ -157,62 +152,22 @@ fun SettingsScreen(
         }
 
         item {
-            SettingsSection(title = stringResource(R.string.section_appearance)) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.language)) },
-                    leadingContent = { Icon(Icons.Outlined.Language, contentDescription = null) },
-                    colors = transparentListColors(),
-                )
-                FlowRow(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    FilterChip(
-                        selected = settings.language == AppLanguage.English,
-                        onClick = { onChange(settings.copy(language = AppLanguage.English)) },
-                        label = { Text("English") },
-                    )
-                    FilterChip(
-                        selected = settings.language == AppLanguage.Arabic,
-                        onClick = { onChange(settings.copy(language = AppLanguage.Arabic)) },
-                        label = { Text("العربية") },
-                    )
-                }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.theme)) },
-                    leadingContent = { Icon(Icons.Outlined.DarkMode, contentDescription = null) },
-                    colors = transparentListColors(),
-                )
-                FlowRow(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    AppTheme.entries.forEach { theme ->
-                        FilterChip(
-                            selected = settings.theme == theme,
-                            onClick = { onChange(settings.copy(theme = theme)) },
-                            label = { Text(themeLabel(theme)) },
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
             SettingsSection(title = stringResource(R.string.preferred_fixers)) {
                 platforms.forEachIndexed { index, key ->
                     val platform = catalog.platform(key)
-                    val current = settings.preferredFixers[key]
+                    val currentHost = settings.preferredFixers[key]
                         ?: catalog.defaultFixerHost(key).orEmpty()
-                    ListItem(
-                        headlineContent = { Text(platform?.name ?: key) },
-                        supportingContent = { Text(current) },
-                        leadingContent = {
-                            Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null)
-                        },
-                        modifier = Modifier.clickable { fixerPlatform = key },
-                        colors = transparentListColors(),
+                    val currentService = catalog.activeServices(key).firstOrNull {
+                        it.normalizedHost().equals(currentHost, ignoreCase = true)
+                    }
+                    PreferredFixerRow(
+                        platformName = platform?.name ?: key,
+                        serviceName = currentService?.name
+                            ?: stringResource(R.string.preferred_fixer_unknown),
+                        host = currentHost,
+                        infoUrl = currentService?.repo?.takeIf { it.isNotBlank() }
+                            ?: currentHost.takeIf { it.startsWith("http") },
+                        onClick = { fixerPlatform = key },
                     )
                     if (index != platforms.lastIndex) {
                         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -238,40 +193,31 @@ fun SettingsScreen(
 
     fixerPlatform?.let { key ->
         val services = catalog.activeServices(key)
-        AlertDialog(
-            onDismissRequest = { fixerPlatform = null },
-            icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
-            title = { Text(catalog.platform(key)?.name ?: key) },
-            text = {
-                Column {
-                    services.forEach { service ->
-                        ListItem(
-                            headlineContent = { Text(service.name) },
-                            supportingContent = { Text(service.normalizedHost()) },
-                            modifier = Modifier.clickable {
-                                onChange(
-                                    settings.copy(
-                                        preferredFixers = settings.preferredFixers +
-                                            (key to service.normalizedHost()),
-                                    ),
-                                )
-                                fixerPlatform = null
-                            },
-                        )
-                    }
-                }
+        val selectedHost = settings.preferredFixers[key]
+            ?: catalog.defaultFixerHost(key).orEmpty()
+        PreferredFixerPickerSheet(
+            platformName = catalog.platform(key)?.name ?: key,
+            services = services,
+            selectedHost = selectedHost,
+            onSelect = { service ->
+                onChange(
+                    settings.copy(
+                        preferredFixers = settings.preferredFixers +
+                            (key to service.normalizedHost()),
+                    ),
+                )
+                fixerPlatform = null
             },
-            confirmButton = {
-                TextButton(onClick = { fixerPlatform = null }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
+            onDismiss = { fixerPlatform = null },
         )
     }
 }
 
 @Composable
 fun AboutScreen(padding: PaddingValues) {
+    val uriHandler = LocalUriHandler.current
+    val siteUrl = stringResource(R.string.developer_site_url)
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -283,13 +229,27 @@ fun AboutScreen(padding: PaddingValues) {
             SettingsSection(title = stringResource(R.string.app_name)) {
                 ListItem(
                     headlineContent = {
-                        Text(
-                            stringResource(R.string.app_name) + " · " +
-                                stringResource(R.string.app_name_ar),
-                        )
+                        Text(stringResource(R.string.app_name))
                     },
                     supportingContent = { Text(stringResource(R.string.about_body)) },
                     leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    colors = transparentListColors(),
+                )
+            }
+        }
+        item {
+            SettingsSection(title = stringResource(R.string.developer_title)) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.developer_name)) },
+                    supportingContent = { Text(stringResource(R.string.developer_site)) },
+                    leadingContent = { Icon(Icons.Outlined.Person, contentDescription = null) },
+                    trailingContent = {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.OpenInNew,
+                            contentDescription = stringResource(R.string.developer_site),
+                        )
+                    },
+                    modifier = Modifier.clickable { uriHandler.openUri(siteUrl) },
                     colors = transparentListColors(),
                 )
             }
@@ -301,7 +261,7 @@ fun AboutScreen(padding: PaddingValues) {
                     colors = transparentListColors(),
                 )
                 Text(
-                    text = "v0.1.0",
+                    text = "v0.1.1",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -317,13 +277,6 @@ private fun actionLabel(action: ShareAction): String = when (action) {
     ShareAction.Clean -> stringResource(R.string.action_clean)
     ShareAction.Embed -> stringResource(R.string.action_embed)
     ShareAction.Download -> stringResource(R.string.action_download)
-}
-
-@Composable
-private fun themeLabel(theme: AppTheme): String = when (theme) {
-    AppTheme.System -> stringResource(R.string.theme_system)
-    AppTheme.Light -> stringResource(R.string.theme_light)
-    AppTheme.Dark -> stringResource(R.string.theme_dark)
 }
 
 @Composable

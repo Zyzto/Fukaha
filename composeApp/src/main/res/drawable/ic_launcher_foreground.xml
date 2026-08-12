@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Matches assets/fukaha-logo.svg -->
+<!-- Foreground layer from assets/fukaha-logo.svg (ring + plus) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="128"
     android:viewportHeight="128">
-    <path
-        android:fillColor="#00687A"
-        android:pathData="M28,0h72c15.46,0 28,12.54 28,28v72c0,15.46 -12.54,28 -28,28h-72c-15.46,0 -28,-12.54 -28,-28v-72c0,-15.46 12.54,-28 28,-28z" />
     <path
         android:fillColor="#00000000"
         android:pathData="M64,30c18.78,0 34,15.22 34,34s-15.22,34 -34,34 -34,-15.22 -34,-34 15.22,-34 34,-34z"

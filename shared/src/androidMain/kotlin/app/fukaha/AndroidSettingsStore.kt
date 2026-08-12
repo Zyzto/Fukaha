@@ -26,9 +26,12 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
         val language = stringPreferencesKey("language")
         val theme = stringPreferencesKey("theme")
         val deleteCacheAfterShare = booleanPreferencesKey("delete_cache_after_share")
+        /** One-time: old builds defaulted language writes to English; prefer System now. */
+        val languageFollowsSystemMigrated = booleanPreferencesKey("language_follows_system_migrated")
     }
 
     override suspend fun get(): FukahaSettings {
+        migrateLanguageDefaultIfNeeded()
         return context.fukahaDataStore.data.map { prefs ->
             FukahaSettings(
                 defaultAction = prefs[Keys.defaultAction]?.let { runCatching { ShareAction.valueOf(it) }.getOrNull() }
@@ -40,12 +43,24 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
                 cobaltApiKey = prefs[Keys.cobaltApiKey].orEmpty(),
                 resolveShortLinks = prefs[Keys.resolveShortLinks] ?: true,
                 language = prefs[Keys.language]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
-                    ?: AppLanguage.English,
+                    ?: AppLanguage.System,
                 theme = prefs[Keys.theme]?.let { runCatching { AppTheme.valueOf(it) }.getOrNull() }
                     ?: AppTheme.System,
                 deleteCacheAfterShare = prefs[Keys.deleteCacheAfterShare] ?: true,
             )
         }.first()
+    }
+
+    private suspend fun migrateLanguageDefaultIfNeeded() {
+        context.fukahaDataStore.edit { prefs ->
+            if (prefs[Keys.languageFollowsSystemMigrated] == true) return@edit
+            val stored = prefs[Keys.language]
+            // Pre-System builds always persisted English as the default on any save.
+            if (stored == null || stored == AppLanguage.English.name) {
+                prefs[Keys.language] = AppLanguage.System.name
+            }
+            prefs[Keys.languageFollowsSystemMigrated] = true
+        }
     }
 
     override suspend fun update(transform: (FukahaSettings) -> FukahaSettings) {

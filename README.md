@@ -124,8 +124,8 @@ Share menu → Fukaha → clean | embed | file → system share again
 Tag a release:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 ---
@@ -142,3 +142,11 @@ This repository is **public**. Never commit keystores, API keys, or `local.prope
 Full text: [LICENSE](LICENSE).
 
 Embed fixer catalog credit: [Lexedia’s gist](https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f) and the authors of the listed services.
+
+---
+
+<p align="center">
+  Made by <a href="https://shenepoy.com"><strong>shenepoy</strong></a>
+  ·
+  <a href="https://github.com/Zyzto">GitHub</a>
+</p>

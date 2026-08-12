@@ -33,7 +33,15 @@ class ShareViewController: UIViewController {
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stack)
 
-        titleLabel.text = "Fukaha · فكها"
+        let ar: Bool = {
+            switch settings.language {
+            case "Arabic": return true
+            case "English": return false
+            default:
+                return Locale.current.language.languageCode?.identifier == "ar"
+            }
+        }()
+        titleLabel.text = ar ? "فكها" : "Fukaha"
         titleLabel.font = .boldSystemFont(ofSize: 22)
         platformLabel.font = .preferredFont(forTextStyle: .headline)
         urlLabel.font = .preferredFont(forTextStyle: .body)
@@ -43,10 +51,10 @@ class ShareViewController: UIViewController {
         statusLabel.textColor = .secondaryLabel
         statusLabel.numberOfLines = 2
 
-        let cleanBtn = makeButton("Share cleaned link", #selector(shareClean))
-        let embedBtn = makeButton("Share embed link", #selector(shareEmbed))
-        let mediaBtn = makeButton("Share media file", #selector(shareMedia))
-        let cancelBtn = makeButton("Cancel", #selector(cancel))
+        let cleanBtn = makeButton(ar ? "مشاركة الرابط النظيف" : "Share cleaned link", #selector(shareClean))
+        let embedBtn = makeButton(ar ? "مشاركة رابط المعاينة" : "Share embed link", #selector(shareEmbed))
+        let mediaBtn = makeButton(ar ? "مشاركة ملف الوسائط" : "Share media file", #selector(shareMedia))
+        let cancelBtn = makeButton(ar ? "إلغاء" : "Cancel", #selector(cancel))
 
         [titleLabel, platformLabel, urlLabel, spinner, statusLabel, cleanBtn, embedBtn, mediaBtn, cancelBtn]
             .forEach { stack.addArrangedSubview($0) }
@@ -67,11 +75,11 @@ class ShareViewController: UIViewController {
 
     private func loadSharedUrl() {
         spinner.startAnimating()
-        statusLabel.text = "Preparing…"
+        statusLabel.text = t("جاري التجهيز…", "Preparing…")
 
         guard let item = extensionContext?.inputItems.first as? NSExtensionItem,
               let provider = item.attachments?.first else {
-            statusLabel.text = "No link found"
+            statusLabel.text = t("عذراً، لم نجد رابطاً في النص المُشارَك", "No link found")
             spinner.stopAnimating()
             return
         }
@@ -89,14 +97,14 @@ class ShareViewController: UIViewController {
                 DispatchQueue.main.async { self.prepare(from: item as? String) }
             }
         } else {
-            statusLabel.text = "No link found"
+            statusLabel.text = t("عذراً، لم نجد رابطاً في النص المُشارَك", "No link found")
             spinner.stopAnimating()
         }
     }
 
     private func prepare(from text: String?) {
         guard let text else {
-            statusLabel.text = "No link found"
+            statusLabel.text = t("عذراً، لم نجد رابطاً في النص المُشارَك", "No link found")
             spinner.stopAnimating()
             return
         }
@@ -123,7 +131,8 @@ class ShareViewController: UIViewController {
                 }
                 self.preparedClean = clean
                 self.preparedEmbed = embed
-                self.platformLabel.text = "Platform: \(platform ?? "Unknown")"
+                let unknown = self.t("منصة غير معروفة", "Unknown")
+                self.platformLabel.text = self.t("المنصة: \(platform ?? unknown)", "Platform: \(platform ?? "Unknown")")
                 self.urlLabel.text = clean
                 self.statusLabel.text = embed
                 self.runDefaultActionIfNeeded()
@@ -156,7 +165,7 @@ class ShareViewController: UIViewController {
     @objc private func shareMedia() {
         guard let url = preparedClean else { return }
         spinner.startAnimating()
-        statusLabel.text = "Downloading media…"
+        statusLabel.text = t("جاري تحميل الوسائط…", "Downloading media…")
 
         let cache = FileManager.default.temporaryDirectory.appendingPathComponent("fukaha", isDirectory: true)
         try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
@@ -177,7 +186,10 @@ class ShareViewController: UIViewController {
                         }
                     }
                 } else {
-                    self.statusLabel.text = error ?? "Download failed — large videos may fail in Share Extension"
+                    self.statusLabel.text = error ?? self.t(
+                        "عذراً، تعذّر تحميل الملف. حاول مجدداً",
+                        "Download failed — large videos may fail in Share Extension"
+                    )
                     if let embed = self.preparedEmbed {
                         self.presentShare([embed])
                     }
@@ -198,6 +210,15 @@ class ShareViewController: UIViewController {
     @objc private func cancel() {
         extensionContext?.completeRequest(returningItems: nil, completionHandler: nil)
     }
+
+    private func t(_ ar: String, _ en: String) -> String {
+        switch settings.language {
+        case "Arabic": return ar
+        case "English": return en
+        default:
+            return Locale.current.language.languageCode?.identifier == "ar" ? ar : en
+        }
+    }
 }
 
 struct SettingsSnapshot {
@@ -206,6 +227,7 @@ struct SettingsSnapshot {
     var cobaltApiKey: String = ""
     var resolveShortLinks: Bool = true
     var deleteCacheAfterShare: Bool = true
+    var language: String = "System"
     var preferredFixers: [String: String] = [:]
 
     static let suite = UserDefaults(suiteName: "group.app.fukaha") ?? .standard
@@ -222,6 +244,7 @@ struct SettingsSnapshot {
         if d.object(forKey: "delete_cache_after_share") != nil {
             s.deleteCacheAfterShare = d.bool(forKey: "delete_cache_after_share")
         }
+        s.language = d.string(forKey: "language") ?? "System"
         if let raw = d.string(forKey: "preferred_fixers") {
             s.preferredFixers = Dictionary(
                 uniqueKeysWithValues: raw.split(separator: "\n").compactMap { line -> (String, String)? in

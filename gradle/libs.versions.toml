@@ -10,6 +10,7 @@ androidx-lifecycle = "2.8.7"
 androidx-navigation = "2.8.5"
 androidx-datastore = "1.1.1"
 androidx-core = "1.15.0"
+androidx-appcompat = "1.7.0"
 ktor = "3.0.3"
 kotlinx-serialization = "1.7.3"
 kotlinx-coroutines = "1.9.0"
@@ -24,6 +25,7 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "androidx-navigation" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "androidx-datastore" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
 composeBom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 composeMaterial3 = { module = "androidx.compose.material3:material3" }
 composeUi = { module = "androidx.compose.ui:ui" }

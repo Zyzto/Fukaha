@@ -23,7 +23,7 @@ class IosSettingsStore(
             },
             language = defaults.stringForKey(KEY_LANGUAGE)?.let {
                 runCatching { AppLanguage.valueOf(it) }.getOrNull()
-            } ?: AppLanguage.English,
+            } ?: AppLanguage.System,
             theme = defaults.stringForKey(KEY_THEME)?.let {
                 runCatching { AppTheme.valueOf(it) }.getOrNull()
             } ?: AppTheme.System,
