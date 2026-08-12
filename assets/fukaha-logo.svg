@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Fukaha">
+  <rect width="128" height="128" rx="28" fill="#00687A"/>
+  <circle cx="64" cy="64" r="34" fill="none" stroke="#ABEDFF" stroke-width="8"/>
+  <path d="M44 64h40M64 44v40" stroke="#F5FAFC" stroke-width="8" stroke-linecap="round"/>
+</svg>

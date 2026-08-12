@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "17"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  test-and-build:
+    name: Test & Assemble Debug
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Accept licenses
+        run: yes | sdkmanager --licenses >/dev/null || true
+
+      - name: Grant gradlew
+        run: chmod +x gradlew
+
+      - name: Unit tests (shared)
+        run: ./gradlew :shared:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Assemble debug APK
+        run: ./gradlew :composeApp:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fukaha-debug-apk
+          path: composeApp/build/outputs/apk/debug/composeApp-debug.apk
+          if-no-files-found: error
