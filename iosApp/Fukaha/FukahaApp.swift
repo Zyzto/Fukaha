@@ -206,7 +206,7 @@ struct AboutView: View {
                     Text(appName)
                         .font(.largeTitle.bold())
                     Text(isArabic
-                         ? "فكها تزيل التتبع من روابط التواصل الاجتماعي، وتحوّلها إلى مضيفات مناسبة للمعاينة، أو تحمّل الوسائط لمشاركتها كملف. افتحها من قائمة المشاركة في النظام."
+                         ? "فكها يزيل التتبع من روابط التواصل الاجتماعي، ويحوّلها إلى مضيفات مناسبة للمعاينة، أو يحمّل الوسائط لمشاركتها كملف. افتحه من قائمة المشاركة في النظام."
                          : "Fukaha cleans tracking from social links, rewrites them to embed-friendly hosts, or downloads media to re-share as a file. Open it from the system share sheet.")
                     Divider()
                     Link(destination: siteUrl) {
@@ -225,7 +225,7 @@ struct AboutView: View {
                          : "Embed fixer list based on Lexedia’s public gist. Thanks to the authors of VixBluesky, InstaFix, fxreddit, fxTikTok, BetterTwitFix, and related projects.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Text("v0.1.1").font(.caption)
+                    Text("v0.2.0").font(.caption)
                 }
                 .padding()
             }

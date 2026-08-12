@@ -2,6 +2,11 @@
 
 All notable changes to Fukaha are documented here.
 
+## [0.2.0] — 2026-08-12
+
+### Fixed
+- Arabic copy treats Fukaha as masculine (`تطبيق`): verb/pronoun agreement (ينفّذ، يزيل، افتحه، إليه)
+
 ## [0.1.1] — 2026-08-12
 
 ### Added

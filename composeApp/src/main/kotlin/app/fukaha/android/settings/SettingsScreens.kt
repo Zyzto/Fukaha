@@ -261,7 +261,7 @@ fun AboutScreen(padding: PaddingValues) {
                     colors = transparentListColors(),
                 )
                 Text(
-                    text = "v0.1.1",
+                    text = "v0.2.0",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),

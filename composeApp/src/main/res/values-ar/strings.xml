@@ -13,7 +13,7 @@
     <string name="downloading">جاري تحميل الوسائط…</string>
     <string name="download_failed">عذراً، تعذّر تحميل الملف. حاول مجدداً</string>
     <string name="default_action">الإجراء الافتراضي</string>
-    <string name="default_action_hint">ما الذي تنفّذه فكها عند مشاركة رابط إليها؟</string>
+    <string name="default_action_hint">ما الذي ينفّذه فكها عند مشاركة رابط إليه؟</string>
     <string name="resolve_short_links">تتبّع الروابط المختصرة</string>
     <string name="resolve_short_links_hint">تتبع اختصارات مثل t.co وvm.tiktok.com للوصول إلى الرابط الأصلي</string>
     <string name="cobalt_url">عنوان خادم Cobalt</string>
@@ -32,14 +32,14 @@
     <string name="cache_cleared">تم مسح ملفات الوسائط المؤقتة</string>
     <string name="preferred_fixers">خدمات المعاينة المفضّلة</string>
     <string name="preferred_fixer_pick_title">اختر خدمة المعاينة</string>
-    <string name="preferred_fixer_pick_subtitle">تستخدمها فكها عند تحويل روابط %1$s إلى روابط معاينة</string>
+    <string name="preferred_fixer_pick_subtitle">يستخدمها فكها عند تحويل روابط %1$s إلى روابط معاينة</string>
     <string name="preferred_fixer_unknown">لم تُحدَّد خدمة</string>
     <string name="fixer_by_author">من إعداد %1$s</string>
     <string name="fixer_info_link">معلومات الخدمة</string>
     <string name="section_sharing">المشاركة</string>
     <string name="section_cobalt">تحميل الوسائط</string>
     <string name="section_storage">التخزين</string>
-    <string name="about_body">فكها تزيل التتبع من روابط التواصل الاجتماعي، وتحوّلها إلى مضيفات مناسبة للمعاينة، أو تحمّل الوسائط لمشاركتها كملف. افتحها من قائمة المشاركة في النظام.</string>
+    <string name="about_body">فكها يزيل التتبع من روابط التواصل الاجتماعي، ويحوّلها إلى مضيفات مناسبة للمعاينة، أو يحمّل الوسائط لمشاركتها كملف. افتحه من قائمة المشاركة في النظام.</string>
     <string name="credits_title">شكر وتقدير</string>
     <string name="credits">قائمة خدمات المعاينة مأخوذة من قائمة Lexedia العامة. شكراً لمؤلفي VixBluesky وInstaFix وfxreddit وfxTikTok وBetterTwitFix والمشاريع ذات الصلة.</string>
     <string name="developer_title">المطوّر</string>
