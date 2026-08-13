@@ -76,15 +76,26 @@
 
 ## لقطات
 
+<div dir="ltr">
 <p align="center">
-  <img src="screenshots/share-sheet.png" alt="ورقة المشاركة — تنظيف أو معاينة أو تحميل" width="220" />
-  <img src="screenshots/settings.png" alt="الإعدادات" width="220" />
+  <img src="screenshots/share-sheet-ar.png" alt="ورقة المشاركة — تنظيف أو معاينة أو تحميل" width="180" />
+  <img src="screenshots/settings-ar.png" alt="الإعدادات" width="180" />
+  <img src="screenshots/fixer-picker-ar.png" alt="اختيار خدمة المعاينة" width="180" />
+  <img src="screenshots/about-ar.png" alt="حول — shenepoy" width="180" />
 </p>
+</div>
 
+<details>
+<summary>السمة الداكنة</summary>
+<div dir="ltr">
 <p align="center">
-  <img src="screenshots/fixer-picker.png" alt="اختيار خدمة المعاينة" width="220" />
-  <img src="screenshots/about.png" alt="حول — shenepoy" width="220" />
+  <img src="screenshots/share-sheet-ar-dark.png" alt="ورقة المشاركة — داكن" width="180" />
+  <img src="screenshots/settings-ar-dark.png" alt="الإعدادات — داكن" width="180" />
+  <img src="screenshots/fixer-picker-ar-dark.png" alt="اختيار خدمة المعاينة — داكن" width="180" />
+  <img src="screenshots/about-ar-dark.png" alt="حول — داكن" width="180" />
 </p>
+</div>
+</details>
 
 </div>
 

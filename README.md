@@ -67,14 +67,21 @@
 ## Screenshots
 
 <p align="center">
-  <img src="screenshots/share-sheet.png" alt="Share sheet — clean, embed, or download" width="220" />
-  <img src="screenshots/settings.png" alt="Settings" width="220" />
+  <img src="screenshots/share-sheet.png" alt="Share sheet — clean, embed, or download" width="180" />
+  <img src="screenshots/settings.png" alt="Settings" width="180" />
+  <img src="screenshots/fixer-picker.png" alt="Preferred embed fixer picker" width="180" />
+  <img src="screenshots/about.png" alt="About — shenepoy" width="180" />
 </p>
 
+<details>
+<summary>Dark theme</summary>
 <p align="center">
-  <img src="screenshots/fixer-picker.png" alt="Preferred embed fixer picker" width="220" />
-  <img src="screenshots/about.png" alt="About — shenepoy" width="220" />
+  <img src="screenshots/share-sheet-dark.png" alt="Share sheet — dark" width="180" />
+  <img src="screenshots/settings-dark.png" alt="Settings — dark" width="180" />
+  <img src="screenshots/fixer-picker-dark.png" alt="Preferred embed fixer picker — dark" width="180" />
+  <img src="screenshots/about-dark.png" alt="About — dark" width="180" />
 </p>
+</details>
 
 ---
 
