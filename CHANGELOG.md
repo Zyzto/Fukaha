@@ -14,6 +14,7 @@ All notable changes to Fukaha are documented here.
 ### Changed
 - Media download actions stay visible but disabled until a valid Cobalt `http(s)` URL is set
 - Fixer picker sheet shows richer service details
+- Relicensed from CC BY-NC-SA 4.0 to AGPL-3.0
 
 ## [0.2.0] — 2026-08-12
 

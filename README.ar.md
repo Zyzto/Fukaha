@@ -21,7 +21,7 @@
   <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/Zyzto/Fukaha/releases"><img alt="Obtainium" src="https://img.shields.io/badge/Obtainium-add-00687A?style=flat-square&logo=android&logoColor=white" /></a>
   <img alt="kotlin" src="https://img.shields.io/badge/Kotlin-Multiplatform-C0C0C0?style=flat-square&logo=kotlin&logoColor=white" />
   <img alt="android" src="https://img.shields.io/badge/Android-26%2B-00687A?style=flat-square&logo=android&logoColor=white" />
-  <img alt="license" src="https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-00687A?style=flat-square" />
+  <img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-00687A?style=flat-square" />
 </p>
 
 <p align="center">
@@ -145,7 +145,7 @@ adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
 
 ## الرخصة
 
-[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — مشاركة وتعديل مع نسب العمل، **لغير التجاري** فقط، وبنفس الرخصة للمشتقات.  
+[رخصة غنو أفيرو العمومية الإصدار 3.0](https://www.gnu.org/licenses/agpl-3.0.html) — برمجيات حرة؛ إن عدّلت البرنامج وشغّلته كخدمة شبكية فيجب توفير الشيفرة المصدرية المقابلة.  
 النص الكامل: [LICENSE](LICENSE).
 
 </div>

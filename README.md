@@ -18,7 +18,7 @@
   <a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/Zyzto/Fukaha/releases"><img alt="Obtainium" src="https://img.shields.io/badge/Obtainium-add-00687A?style=flat-square&logo=android&logoColor=white" /></a>
   <img alt="kotlin" src="https://img.shields.io/badge/Kotlin-Multiplatform-C0C0C0?style=flat-square&logo=kotlin&logoColor=white" />
   <img alt="android" src="https://img.shields.io/badge/Android-26%2B-00687A?style=flat-square&logo=android&logoColor=white" />
-  <img alt="license" src="https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-00687A?style=flat-square" />
+  <img alt="license" src="https://img.shields.io/badge/license-AGPL--3.0-00687A?style=flat-square" />
 </p>
 
 <p align="center">
@@ -161,7 +161,7 @@ This repository is **public**. Never commit keystores, API keys, or `local.prope
 
 ## License
 
-[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — share and adapt with attribution, **non-commercial** only, same license for derivatives.  
+[GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html) — free software; if you modify and run it as a network service, you must offer the corresponding source.  
 Full text: [LICENSE](LICENSE).
 
 Embed fixer catalog credit: [Lexedia’s gist](https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f) and the authors of the listed services.
