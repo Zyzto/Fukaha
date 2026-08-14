@@ -11,4 +11,5 @@ interface SettingsStore {
     suspend fun setLanguage(language: AppLanguage)
     suspend fun setTheme(theme: AppTheme)
     suspend fun setDeleteCacheAfterShare(enabled: Boolean)
+    suspend fun setOnboardingCompleted(completed: Boolean)
 }

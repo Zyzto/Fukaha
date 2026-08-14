@@ -5,10 +5,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -90,7 +93,13 @@ fun ShareSheet(
                     color = colors.onSurface,
                 )
                 Text(
-                    text = stringResource(R.string.share_sheet_subtitle),
+                    text = stringResource(
+                        if (mediaDownloadEnabled) {
+                            R.string.share_sheet_subtitle
+                        } else {
+                            R.string.share_sheet_subtitle_no_media
+                        },
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = colors.onSurfaceVariant,
                 )
@@ -171,10 +180,11 @@ fun ShareSheet(
                         )
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Without a Cobalt URL the download can only fail, so drop the
+                    // button rather than showing a dead control with an excuse.
+                    if (mediaDownloadEnabled) {
                         FilledTonalButton(
                             onClick = onShareMedia,
-                            enabled = mediaDownloadEnabled,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp),
@@ -189,13 +199,6 @@ fun ShareSheet(
                             Text(
                                 text = stringResource(R.string.share_media),
                                 style = MaterialTheme.typography.titleSmall,
-                            )
-                        }
-                        if (!mediaDownloadEnabled) {
-                            Text(
-                                text = stringResource(R.string.share_media_disabled_hint),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.onSurfaceVariant,
                             )
                         }
                     }
@@ -289,14 +292,18 @@ private fun LinkActionRow(
                         tint = colors.primary,
                     )
                     Row(
+                        // Size to the tallest child so the share button can match the
+                        // height of however many lines the URL wraps to.
                         modifier = Modifier
                             .fillMaxWidth()
+                            .height(IntrinsicSize.Min)
                             .padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Row(
                             modifier = Modifier
                                 .weight(1f)
+                                .fillMaxHeight()
                                 .clip(MaterialTheme.shapes.medium)
                                 .clickable(onClick = onCopy)
                                 .padding(horizontal = 10.dp, vertical = 8.dp),
@@ -322,7 +329,8 @@ private fun LinkActionRow(
                             Button(
                                 onClick = onShare,
                                 modifier = Modifier
-                                    .height(52.dp)
+                                    .fillMaxHeight()
+                                    .heightIn(min = 52.dp)
                                     .widthIn(min = 64.dp),
                                 shape = shareShape,
                                 contentPadding = PaddingValues(horizontal = 18.dp),

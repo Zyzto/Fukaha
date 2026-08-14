@@ -2,6 +2,22 @@
 
 All notable changes to Fukaha are documented here.
 
+## [0.3.1] — 2026-08-14
+
+### Added
+- Paste a link at the top of Settings to run it through Fukaha without sharing in from another app
+- First-run onboarding tour, replayable any time from the Help button or About
+- Default action can be picked from the last tour page
+
+### Changed
+- The Test section is now "Use a link now"; the sample link moved there as a secondary action
+- The share sheet hides "Share media file" entirely when no Cobalt URL is set, instead of showing a disabled button
+- "Open share screen" only appears once the pasted text contains a usable link
+- Share buttons in the share sheet stretch to the full height of their link row
+
+### Fixed
+- Sharing a second link while the share sheet was still open showed the previous link
+
 ## [0.3.0] — 2026-08-12
 
 ### Added

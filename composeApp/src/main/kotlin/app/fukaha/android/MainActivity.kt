@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
@@ -56,6 +57,7 @@ import app.fukaha.AppTheme
 import app.fukaha.EmbedHealthSnapshot
 import app.fukaha.FukahaSettings
 import app.fukaha.R
+import app.fukaha.android.onboarding.TutorialScreen
 import app.fukaha.android.settings.AboutScreen
 import app.fukaha.android.settings.SettingsScreen
 import app.fukaha.android.theme.FukahaTheme
@@ -74,6 +76,8 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             var settings by remember { mutableStateOf(FukahaSettings()) }
+            var settingsLoaded by remember { mutableStateOf(false) }
+            var tutorialOpen by remember { mutableStateOf(false) }
             var tab by remember { mutableIntStateOf(0) }
             val scope = rememberCoroutineScope()
             val snackbar = remember { SnackbarHostState() }
@@ -98,73 +102,104 @@ class MainActivity : AppCompatActivity() {
             LaunchedEffect(Unit) {
                 settings = app.settingsStore.get()
                 LocaleHelper.apply(settings.language)
+                settingsLoaded = true
             }
 
             FukahaTheme(theme = settings.theme) {
-                Scaffold(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .nestedScroll(scrollBehavior.nestedScrollConnection),
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    topBar = {
-                        TopAppBar(
-                            title = {
-                                Text(
-                                    if (tab == 0) stringResource(R.string.settings)
-                                    else stringResource(R.string.about),
-                                )
-                            },
-                            actions = {
-                                LanguageMenuButton(
-                                    language = settings.language,
-                                    onSelect = { persist(settings.copy(language = it)) },
-                                )
-                                ThemeCycleButton(
-                                    theme = settings.theme,
-                                    onSelect = { persist(settings.copy(theme = it)) },
-                                )
-                            },
-                            scrollBehavior = scrollBehavior,
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            ),
-                        )
-                    },
-                    bottomBar = {
-                        NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
-                            NavigationBarItem(
-                                selected = tab == 0,
-                                onClick = { tab = 0 },
-                                icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
-                                label = { Text(stringResource(R.string.settings)) },
+                // Wait for the stored flag so upgrading users never flash the tour.
+                val firstRun = settingsLoaded && !settings.onboardingCompleted
+                if (firstRun || tutorialOpen) {
+                    TutorialScreen(
+                        firstRun = firstRun,
+                        onFinish = {
+                            tutorialOpen = false
+                            if (!settings.onboardingCompleted) {
+                                persist(settings.copy(onboardingCompleted = true))
+                            }
+                        },
+                    )
+                } else {
+                    val barColors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    )
+                    Scaffold(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .nestedScroll(scrollBehavior.nestedScrollConnection),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        topBar = {
+                            TopAppBar(
+                                title = {
+                                    Text(
+                                        if (tab == 0) stringResource(R.string.settings)
+                                        else stringResource(R.string.about),
+                                    )
+                                },
+                                actions = {
+                                    IconButton(onClick = { tutorialOpen = true }) {
+                                        Icon(
+                                            Icons.AutoMirrored.Outlined.HelpOutline,
+                                            contentDescription = stringResource(R.string.help),
+                                        )
+                                    }
+                                    LanguageMenuButton(
+                                        language = settings.language,
+                                        onSelect = { persist(settings.copy(language = it)) },
+                                    )
+                                    ThemeCycleButton(
+                                        theme = settings.theme,
+                                        onSelect = { persist(settings.copy(theme = it)) },
+                                    )
+                                },
+                                scrollBehavior = scrollBehavior,
+                                colors = barColors,
                             )
-                            NavigationBarItem(
-                                selected = tab == 1,
-                                onClick = { tab = 1 },
-                                icon = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                                label = { Text(stringResource(R.string.about)) },
+                        },
+                        bottomBar = {
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            ) {
+                                NavigationBarItem(
+                                    selected = tab == 0,
+                                    onClick = { tab = 0 },
+                                    icon = {
+                                        Icon(Icons.Outlined.Settings, contentDescription = null)
+                                    },
+                                    label = { Text(stringResource(R.string.settings)) },
+                                )
+                                NavigationBarItem(
+                                    selected = tab == 1,
+                                    onClick = { tab = 1 },
+                                    icon = {
+                                        Icon(Icons.Outlined.Info, contentDescription = null)
+                                    },
+                                    label = { Text(stringResource(R.string.about)) },
+                                )
+                            }
+                        },
+                        snackbarHost = { SnackbarHost(snackbar) },
+                    ) { padding ->
+                        when (tab) {
+                            0 -> SettingsScreen(
+                                padding = padding,
+                                settings = settings,
+                                onChange = { persist(it) },
+                                onClearCache = {
+                                    File(cacheDir, "fukaha").listFiles()?.forEach { it.delete() }
+                                    scope.launch {
+                                        snackbar.showSnackbar(getString(R.string.cache_cleared))
+                                    }
+                                },
+                                health = health,
+                                healthChecking = healthChecking,
+                                onRefreshHealth = { app.healthController.refresh() },
+                            )
+                            else -> AboutScreen(
+                                padding = padding,
+                                onOpenTutorial = { tutorialOpen = true },
                             )
                         }
-                    },
-                    snackbarHost = { SnackbarHost(snackbar) },
-                ) { padding ->
-                    when (tab) {
-                        0 -> SettingsScreen(
-                            padding = padding,
-                            settings = settings,
-                            onChange = { persist(it) },
-                            onClearCache = {
-                                File(cacheDir, "fukaha").listFiles()?.forEach { it.delete() }
-                                scope.launch {
-                                    snackbar.showSnackbar(getString(R.string.cache_cleared))
-                                }
-                            },
-                            health = health,
-                            healthChecking = healthChecking,
-                            onRefreshHealth = { app.healthController.refresh() },
-                        )
-                        else -> AboutScreen(padding = padding)
                     }
                 }
             }

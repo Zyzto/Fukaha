@@ -21,8 +21,7 @@
     <string name="cobalt_url_placeholder">https://your-cobalt.example</string>
     <string name="cobalt_api_key">مفتاح Cobalt (اختياري)</string>
     <string name="cobalt_hint">يحتاج تحميل الوسائط إلى عنوان خادم Cobalt تستضيفه بنفسك (ومفتاح API إن طلبه خادمك). واجهة cobalt.tools العامة لا تعمل مع هذا التطبيق.</string>
-    <string name="action_download_disabled_hint">عيّن عنوان Cobalt في تحميل الوسائط أدناه.</string>
-    <string name="share_media_disabled_hint">عيّن عنوان Cobalt في الإعدادات أولاً.</string>
+    <string name="action_download_disabled_hint">يحتاج إلى عنوان خادم Cobalt الخاص بك، ويُعيَّن في قسم تحميل الوسائط بالإعدادات.</string>
     <string name="section_cobalt_collapsed_hint">اضغط لتعيين عنوان خادم Cobalt</string>
     <string name="section_cobalt_expand">توسيع تحميل الوسائط</string>
     <string name="section_cobalt_collapse">طي تحميل الوسائط</string>
@@ -47,9 +46,16 @@
     <string name="section_sharing">المشاركة</string>
     <string name="section_cobalt">تحميل الوسائط</string>
     <string name="section_storage">التخزين</string>
-    <string name="section_test">تجربة</string>
-    <string name="test_share_sheet">جرّب ورقة المشاركة</string>
-    <string name="test_share_sheet_hint">يفتح فكها برابط من إكس يحتوي على معاملات تتبع</string>
+    <string name="section_quick_use">استخدم رابطاً الآن</string>
+    <string name="quick_use_hint">الصق رابطاً لتنظيفه، أو لتصحيح معاينته، أو لتحميل الوسائط.</string>
+    <string name="quick_use_field_label">الرابط</string>
+    <string name="quick_use_field_placeholder">https://x.com/…</string>
+    <string name="quick_use_paste">لصق من الحافظة</string>
+    <string name="quick_use_clear">إفراغ الحقل</string>
+    <string name="quick_use_open">افتح شاشة المشاركة</string>
+    <string name="quick_use_invalid">لا يبدو هذا رابطاً بعد</string>
+    <string name="quick_use_clipboard_empty">الحافظة فارغة</string>
+    <string name="quick_use_sample">جرّب رابطاً تجريبياً</string>
     <string name="about_body">فكها يزيل التتبع من روابط التواصل الاجتماعي، ويحوّلها إلى مضيفات مناسبة للمعاينة، أو يحمّل الوسائط لمشاركتها كملف (يتطلب عنوان خادم Cobalt الخاص بك في الإعدادات). افتحه من قائمة المشاركة في النظام.</string>
     <string name="version">الإصدار</string>
     <string name="version_value">v%1$s</string>
@@ -81,6 +87,7 @@
     <string name="preparing">جاري التجهيز…</string>
     <string name="fallback_embed">سنستخدم رابط المعاينة بدلاً من الملف</string>
     <string name="share_sheet_subtitle">نظّف الرابط، أو جهّز المعاينة، أو حمّل الملف — ثم شارك من جديد</string>
+    <string name="share_sheet_subtitle_no_media">نظّف الرابط أو جهّز المعاينة — ثم شارك من جديد</string>
     <string name="original_preview">الرابط الأصلي</string>
     <string name="cleaned_preview">الرابط النظيف</string>
     <string name="embed_preview">رابط المعاينة</string>
@@ -95,4 +102,18 @@
     <string name="embed_health_dead">غير متاح</string>
     <string name="embed_health_unknown">غير معروف</string>
     <string name="embed_preview_unreachable">رابط المعاينة · غير متاح</string>
+    <string name="help">مساعدة</string>
+    <string name="tutorial_title">كيف تستخدم فكها</string>
+    <string name="tutorial_open">كيف تستخدم فكها</string>
+    <string name="tutorial_open_hint">أعِد الجولة السريعة في أي وقت</string>
+    <string name="onboarding_skip">تخطٍّ</string>
+    <string name="onboarding_next">التالي</string>
+    <string name="onboarding_done">لنبدأ</string>
+    <string name="tutorial_close">تم</string>
+    <string name="tutorial_welcome_title">روابط بلا تتبع</string>
+    <string name="tutorial_welcome_body">يزيل التتبع، ويصلح المعاينة، أو يشارك الوسائط كملف.</string>
+    <string name="tutorial_share_title">شارك من أي تطبيق</string>
+    <string name="tutorial_share_body">افتح منشوراً، اضغط مشاركة، واختر فكها. ثم أرسل النتيجة حيث تشاء.</string>
+    <string name="tutorial_paste_title">أو الصق الرابط</string>
+    <string name="tutorial_paste_body">ضع الرابط أعلى الإعدادات. شاشة المشاركة نفسها، دون تطبيق إضافي.</string>
 </resources>

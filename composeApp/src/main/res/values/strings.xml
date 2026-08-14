@@ -21,8 +21,7 @@
     <string name="cobalt_url_placeholder">https://your-cobalt.example</string>
     <string name="cobalt_api_key">Cobalt API key (optional)</string>
     <string name="cobalt_hint">Media download needs your own self-hosted Cobalt instance URL (and API key if your instance requires one). The public cobalt.tools API will not work with this app.</string>
-    <string name="action_download_disabled_hint">Set your Cobalt URL in Media download below.</string>
-    <string name="share_media_disabled_hint">Set Cobalt URL in Settings first.</string>
+    <string name="action_download_disabled_hint">Needs your own Cobalt server URL, set under Media download in Settings.</string>
     <string name="section_cobalt_collapsed_hint">Tap to set your Cobalt instance URL</string>
     <string name="section_cobalt_expand">Expand Media download</string>
     <string name="section_cobalt_collapse">Collapse Media download</string>
@@ -47,9 +46,16 @@
     <string name="section_sharing">Sharing</string>
     <string name="section_cobalt">Media download</string>
     <string name="section_storage">Storage</string>
-    <string name="section_test">Test</string>
-    <string name="test_share_sheet">Try share sheet</string>
-    <string name="test_share_sheet_hint">Open Fukaha with a sample X link that still has tracking params</string>
+    <string name="section_quick_use">Use a link now</string>
+    <string name="quick_use_hint">Paste a link to clean it, fix the preview, or download the media.</string>
+    <string name="quick_use_field_label">Link</string>
+    <string name="quick_use_field_placeholder">https://x.com/…</string>
+    <string name="quick_use_paste">Paste from clipboard</string>
+    <string name="quick_use_clear">Clear link</string>
+    <string name="quick_use_open">Open share screen</string>
+    <string name="quick_use_invalid">That does not look like a link yet</string>
+    <string name="quick_use_clipboard_empty">Your clipboard is empty</string>
+    <string name="quick_use_sample">Try a sample link</string>
     <string name="about_body">Fukaha (فكها) cleans tracking from social links, rewrites them to embed-friendly hosts, or downloads media to re-share as a file (requires your own Cobalt instance URL in Settings). Open it from the system share menu.</string>
     <string name="version">Version</string>
     <string name="version_value">v%1$s</string>
@@ -81,6 +87,7 @@
     <string name="preparing">Preparing…</string>
     <string name="fallback_embed">Falling back to embed link</string>
     <string name="share_sheet_subtitle">Clean, embed, or download — then share again</string>
+    <string name="share_sheet_subtitle_no_media">Clean it or fix the preview — then share again</string>
     <string name="original_preview">Original link</string>
     <string name="cleaned_preview">Cleaned link</string>
     <string name="embed_preview">Embed link</string>
@@ -95,4 +102,18 @@
     <string name="embed_health_dead">Unreachable</string>
     <string name="embed_health_unknown">Unknown</string>
     <string name="embed_preview_unreachable">Embed link · unreachable</string>
+    <string name="help">Help</string>
+    <string name="tutorial_title">How to use Fukaha</string>
+    <string name="tutorial_open">How to use Fukaha</string>
+    <string name="tutorial_open_hint">Replay the quick tour any time</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_done">Get started</string>
+    <string name="tutorial_close">Done</string>
+    <string name="tutorial_welcome_title">Links, without the junk</string>
+    <string name="tutorial_welcome_body">Strip tracking, fix the preview, or share the media as a file.</string>
+    <string name="tutorial_share_title">Share from any app</string>
+    <string name="tutorial_share_body">Open a post, tap Share, and pick Fukaha. Then send the result wherever you want.</string>
+    <string name="tutorial_paste_title">Or just paste</string>
+    <string name="tutorial_paste_body">Drop a URL at the top of Settings. Same share screen, no extra app.</string>
 </resources>

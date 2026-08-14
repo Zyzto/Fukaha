@@ -26,6 +26,7 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
         val language = stringPreferencesKey("language")
         val theme = stringPreferencesKey("theme")
         val deleteCacheAfterShare = booleanPreferencesKey("delete_cache_after_share")
+        val onboardingCompleted = booleanPreferencesKey("onboarding_completed")
         /** One-time: old builds defaulted language writes to English; prefer System now. */
         val languageFollowsSystemMigrated = booleanPreferencesKey("language_follows_system_migrated")
         /** One-time: clear former public api.cobalt.tools default. */
@@ -50,6 +51,7 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
                 theme = prefs[Keys.theme]?.let { runCatching { AppTheme.valueOf(it) }.getOrNull() }
                     ?: AppTheme.System,
                 deleteCacheAfterShare = prefs[Keys.deleteCacheAfterShare] ?: true,
+                onboardingCompleted = prefs[Keys.onboardingCompleted] ?: false,
             ).withDownloadClamped()
         }.first()
     }
@@ -93,6 +95,7 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
             prefs[Keys.language] = next.language.name
             prefs[Keys.theme] = next.theme.name
             prefs[Keys.deleteCacheAfterShare] = next.deleteCacheAfterShare
+            prefs[Keys.onboardingCompleted] = next.onboardingCompleted
         }
     }
 
@@ -126,5 +129,9 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
 
     override suspend fun setDeleteCacheAfterShare(enabled: Boolean) {
         update { it.copy(deleteCacheAfterShare = enabled) }
+    }
+
+    override suspend fun setOnboardingCompleted(completed: Boolean) {
+        update { it.copy(onboardingCompleted = completed) }
     }
 }

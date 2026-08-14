@@ -14,4 +14,5 @@ object IosSettingsKeys {
     const val LANGUAGE = "language"
     const val THEME = "theme"
     const val DELETE_CACHE = "delete_cache_after_share"
+    const val ONBOARDING_COMPLETED = "onboarding_completed"
 }

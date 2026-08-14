@@ -284,7 +284,7 @@ struct AboutView: View {
                          : "Embed fixer list based on Lexedia’s public gist. Thanks to the authors of VixBluesky, InstaFix, fxreddit, fxTikTok, BetterTwitFix, and related projects.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Text("v0.3.0").font(.caption)
+                    Text("v0.3.1").font(.caption)
                 }
                 .padding()
             }

@@ -190,6 +190,17 @@ class ShareActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * This activity is `singleInstance`, so a second share (or a paste from Settings)
+     * reuses the existing instance. Rebuild it so the sheet reflects the new link
+     * instead of the one captured in [onCreate].
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        recreate()
+    }
+
     private fun mediaCacheDir(): File {
         val dir = File(cacheDir, "fukaha")
         if (!dir.exists()) dir.mkdirs()

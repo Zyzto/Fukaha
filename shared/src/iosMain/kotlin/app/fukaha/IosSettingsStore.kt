@@ -33,6 +33,7 @@ class IosSettingsStore(
             } else {
                 defaults.boolForKey(KEY_DELETE_CACHE)
             },
+            onboardingCompleted = defaults.boolForKey(KEY_ONBOARDING_COMPLETED),
         ).withDownloadClamped()
     }
 
@@ -46,6 +47,7 @@ class IosSettingsStore(
         defaults.setObject(next.language.name, KEY_LANGUAGE)
         defaults.setObject(next.theme.name, KEY_THEME)
         defaults.setBool(next.deleteCacheAfterShare, KEY_DELETE_CACHE)
+        defaults.setBool(next.onboardingCompleted, KEY_ONBOARDING_COMPLETED)
         defaults.synchronize()
     }
 
@@ -96,6 +98,10 @@ class IosSettingsStore(
         update { it.copy(deleteCacheAfterShare = enabled) }
     }
 
+    override suspend fun setOnboardingCompleted(completed: Boolean) {
+        update { it.copy(onboardingCompleted = completed) }
+    }
+
     private fun serializeFixers(map: Map<String, String>): String =
         map.entries.joinToString("\n") { "${it.key}\t${it.value}" }
 
@@ -119,6 +125,7 @@ class IosSettingsStore(
         private const val KEY_LANGUAGE = "language"
         private const val KEY_THEME = "theme"
         private const val KEY_DELETE_CACHE = "delete_cache_after_share"
+        private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_COBALT_PUBLIC_CLEARED = "cobalt_public_default_cleared"
     }
 }
