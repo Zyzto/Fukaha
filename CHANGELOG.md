@@ -4,6 +4,12 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-08-15
+
+### Fixed
+- Release APKs now use a stable signing key so Obtainium can update without a conflict
+- Users on 0.4.0 or 0.4.1 must uninstall once, then install 0.4.2; later updates keep the same signature
+
 ## [0.4.1] — 2026-08-15
 
 ### Fixed

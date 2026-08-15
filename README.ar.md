@@ -109,7 +109,7 @@
 
 | الخيار | |
 |--------|--|
-| **Obtainium** (موصى به) | [![Obtainium](https://img.shields.io/badge/Obtainium-add-00687A?style=flat-square&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/Zyzto/Fukaha/releases) — يتابع [إصدارات GitHub](https://github.com/Zyzto/Fukaha/releases) |
+| **Obtainium** (موصى به) | [![Obtainium](https://img.shields.io/badge/Obtainium-add-00687A?style=flat-square&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/Zyzto/Fukaha/releases) — يتابع [إصدارات GitHub](https://github.com/Zyzto/Fukaha/releases). الإصدارات قبل **v0.4.2** استخدمت مفتاح تصحيح مؤقتاً؛ أزل التطبيق مرة ثم ثبّت 0.4.2 أو أحدث. التحديثات التالية تبقى بنفس التوقيع. |
 | **APK** | حمّل من [آخر إصدار](https://github.com/Zyzto/Fukaha/releases/latest) |
 
 ### iOS

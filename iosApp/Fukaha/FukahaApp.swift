@@ -477,7 +477,7 @@ struct AboutView: View {
                                 .font(.headline)
                             Text(updateChecking
                                  ? (isArabic ? "جاري فحص إصدارات GitHub…" : "Checking GitHub Releases…")
-                                 : "v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.4.1")")
+                                 : "v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.4.2")")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

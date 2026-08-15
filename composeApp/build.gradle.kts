@@ -1,9 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
 }
+
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) load(file.inputStream())
+}
+
+fun releaseSigningValue(envName: String, propertyName: String): String? =
+    System.getenv(envName)?.takeIf { it.isNotBlank() }
+        ?: keystoreProperties.getProperty(propertyName)?.takeIf { it.isNotBlank() }
 
 android {
     namespace = "app.fukaha"
@@ -13,8 +24,8 @@ android {
         applicationId = "app.fukaha"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 7
-        versionName = "0.4.1"
+        versionCode = 8
+        versionName = "0.4.2"
     }
 
     buildFeatures {
@@ -37,12 +48,27 @@ android {
         }
     }
 
+    signingConfigs {
+        val storePath = releaseSigningValue("RELEASE_STORE_FILE", "storeFile")
+        val storePassword = releaseSigningValue("RELEASE_STORE_PASSWORD", "storePassword")
+        val keyAlias = releaseSigningValue("RELEASE_KEY_ALIAS", "keyAlias")
+        val keyPassword = releaseSigningValue("RELEASE_KEY_PASSWORD", "keyPassword")
+        if (storePath != null && storePassword != null && keyAlias != null && keyPassword != null) {
+            create("release") {
+                storeFile = file(storePath)
+                this.storePassword = storePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            // Temporary: ship with debug signing until a release keystore is configured in CI.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

@@ -91,7 +91,7 @@
 
 | Option | |
 |--------|--|
-| **Obtainium** (recommended) | [![Obtainium](https://img.shields.io/badge/Obtainium-add-00687A?style=flat-square&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/Zyzto/Fukaha/releases) — tracks [GitHub Releases](https://github.com/Zyzto/Fukaha/releases) |
+| **Obtainium** (recommended) | [![Obtainium](https://img.shields.io/badge/Obtainium-add-00687A?style=flat-square&logo=android&logoColor=white)](https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/Zyzto/Fukaha/releases) — tracks [GitHub Releases](https://github.com/Zyzto/Fukaha/releases). Builds before **v0.4.2** used a one-off CI debug key; uninstall once, then install 0.4.2+. Later updates keep the same signature. |
 | **APK** | Download from [latest release](https://github.com/Zyzto/Fukaha/releases/latest) |
 
 ### iOS
@@ -149,8 +149,8 @@ Share menu → Fukaha → clean | embed | file → system share again
 Tag a release:
 
 ```bash
-git tag v0.4.1
-git push origin v0.4.1
+git tag v0.4.2
+git push origin v0.4.2
 ```
 
 ---
@@ -158,6 +158,8 @@ git push origin v0.4.1
 ## Contributing & secrets
 
 This repository is **public**. Never commit keystores, API keys, or `local.properties`. Use Settings in-app for Cobalt credentials.
+
+Release APKs are signed with a keystore stored only in GitHub Actions secrets (`RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`). Keep a private backup of `fukaha-release.jks` and `key.properties` — losing them means Obtainium users cannot update in place.
 
 ---
 
