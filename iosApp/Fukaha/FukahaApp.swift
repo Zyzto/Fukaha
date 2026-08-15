@@ -282,87 +282,16 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(isArabic ? "الإجراء الافتراضي" : "Default action") {
-                    Picker(isArabic ? "الإجراء" : "Action", selection: $settings.defaultAction) {
-                        ForEach(actionOptions, id: \.id) { option in
-                            Text(option.label).tag(option.id)
-                        }
-                    }
-                    if !settings.hasValidCobaltBaseUrl {
-                        Text(isArabic ? "تحميل الوسائط" : "Download media")
-                            .foregroundStyle(.tertiary)
-                        Text(isArabic
-                             ? "عيّن عنوان Cobalt في تحميل الوسائط أدناه."
-                             : "Set your Cobalt URL in Media download below.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Section(isArabic ? "خدمات المعاينة المفضّلة" : "Preferred embed fixers") {
-                    ForEach(Array(facade.platformKeys()), id: \.self) { key in
-                        let services = facade.serviceNames(platformKey: key)
-                        if !services.isEmpty {
-                            Picker(key.capitalized, selection: fixerBinding(key, fallback: services)) {
-                                ForEach(services, id: \.self) { row in
-                                    let parts = row.split(separator: "\t", maxSplits: 1).map(String.init)
-                                    let name = parts.first ?? row
-                                    let host = parts.count > 1 ? parts[1] : row
-                                    Text("\(name) (\(host))").tag(host)
-                                }
-                            }
-                        }
-                    }
-                }
-                Section(isArabic ? "الشبكة" : "Network") {
-                    Toggle(isArabic ? "تتبّع الروابط المختصرة" : "Resolve short links", isOn: $settings.resolveShortLinks)
-                    Toggle(isArabic ? "حذف الملفات المؤقتة بعد المشاركة" : "Delete cache after share", isOn: $settings.deleteCacheAfterShare)
-                }
-                Section(isArabic ? "التحديثات" : "Updates") {
-                    Toggle(isArabic ? "البحث عن تحديثات عند الفتح" : "Check for updates on launch", isOn: $settings.checkUpdatesOnLaunch)
-                    Text(isArabic
-                         ? "يفحص إصدارات GitHub نحو مرة في اليوم. يمكنك الفحص أيضاً من صفحة حول."
-                         : "Looks at GitHub Releases about once a day. You can also check from About.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Section {
-                    DisclosureGroup(isExpanded: $cobaltExpanded) {
-                        Text(isArabic
-                             ? "يحتاج تحميل الوسائط إلى عنوان خادم Cobalt تستضيفه بنفسك (ومفتاح API إن طلبه خادمك). واجهة cobalt.tools العامة لا تعمل مع هذا التطبيق."
-                             : "Media download needs your own self-hosted Cobalt instance URL (and API key if your instance requires one). The public cobalt.tools API will not work with this app.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        TextField(isArabic ? "عنوان خادم Cobalt" : "Cobalt instance URL", text: $settings.cobaltBaseUrl)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        TextField(isArabic ? "مفتاح Cobalt (اختياري)" : "Cobalt API key (optional)", text: $settings.cobaltApiKey)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                    } label: {
-                        Text(isArabic ? "تحميل الوسائط" : "Media download")
-                    }
-                }
-                Section(isArabic ? "المظهر" : "Appearance") {
-                    Picker(isArabic ? "اللغة" : "Language", selection: $settings.language) {
-                        Text(isArabic ? "حسب النظام" : "System").tag("System")
-                        Text("English").tag("English")
-                        Text("العربية").tag("Arabic")
-                    }
-                    Picker(isArabic ? "السمة" : "Theme", selection: $settings.theme) {
-                        Text(isArabic ? "حسب النظام" : "System").tag("System")
-                        Text(isArabic ? "فاتح" : "Light").tag("Light")
-                        Text(isArabic ? "داكن" : "Dark").tag("Dark")
-                    }
-                }
+                defaultActionSection
+                preferredFixersSection
+                networkSection
+                updatesSection
+                cobaltSection
+                appearanceSection
             }
             .navigationTitle(isArabic ? "الإعدادات" : "Settings")
             .onChange(of: settings.defaultAction) { _, _ in settings.save() }
-            .onChange(of: settings.cobaltBaseUrl) { _, _ in
-                if settings.defaultAction == "Download" && !settings.hasValidCobaltBaseUrl {
-                    settings.defaultAction = "Ask"
-                }
-                settings.save()
-            }
+            .onChange(of: settings.cobaltBaseUrl) { _, _ in persistCobaltUrl() }
             .onChange(of: settings.cobaltApiKey) { _, _ in settings.save() }
             .onChange(of: settings.resolveShortLinks) { _, _ in settings.save() }
             .onChange(of: settings.deleteCacheAfterShare) { _, _ in settings.save() }
@@ -370,6 +299,112 @@ struct SettingsView: View {
             .onChange(of: settings.theme) { _, _ in settings.save() }
             .onChange(of: settings.checkUpdatesOnLaunch) { _, _ in settings.save() }
         }
+    }
+
+    private var defaultActionSection: some View {
+        Section(isArabic ? "الإجراء الافتراضي" : "Default action") {
+            Picker(isArabic ? "الإجراء" : "Action", selection: $settings.defaultAction) {
+                ForEach(actionOptions, id: \.id) { option in
+                    Text(option.label).tag(option.id)
+                }
+            }
+            if !settings.hasValidCobaltBaseUrl {
+                Text(isArabic ? "تحميل الوسائط" : "Download media")
+                    .foregroundStyle(.tertiary)
+                Text(isArabic
+                     ? "عيّن عنوان Cobalt في تحميل الوسائط أدناه."
+                     : "Set your Cobalt URL in Media download below.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var preferredFixersSection: some View {
+        Section(isArabic ? "خدمات المعاينة المفضّلة" : "Preferred embed fixers") {
+            ForEach(Array(facade.platformKeys()), id: \.self) { key in
+                fixerPicker(for: key)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func fixerPicker(for key: String) -> some View {
+        let services = facade.serviceNames(platformKey: key)
+        if !services.isEmpty {
+            Picker(key.capitalized, selection: fixerBinding(key, fallback: services)) {
+                ForEach(services, id: \.self) { row in
+                    fixerLabel(row)
+                }
+            }
+        }
+    }
+
+    private func fixerLabel(_ row: String) -> some View {
+        let parts = row.split(separator: "\t", maxSplits: 1).map(String.init)
+        let name = parts.first ?? row
+        let host = parts.count > 1 ? parts[1] : row
+        return Text("\(name) (\(host))").tag(host)
+    }
+
+    private var networkSection: some View {
+        Section(isArabic ? "الشبكة" : "Network") {
+            Toggle(isArabic ? "تتبّع الروابط المختصرة" : "Resolve short links", isOn: $settings.resolveShortLinks)
+            Toggle(isArabic ? "حذف الملفات المؤقتة بعد المشاركة" : "Delete cache after share", isOn: $settings.deleteCacheAfterShare)
+        }
+    }
+
+    private var updatesSection: some View {
+        Section(isArabic ? "التحديثات" : "Updates") {
+            Toggle(isArabic ? "البحث عن تحديثات عند الفتح" : "Check for updates on launch", isOn: $settings.checkUpdatesOnLaunch)
+            Text(isArabic
+                 ? "يفحص إصدارات GitHub نحو مرة في اليوم. يمكنك الفحص أيضاً من صفحة حول."
+                 : "Looks at GitHub Releases about once a day. You can also check from About.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var cobaltSection: some View {
+        Section {
+            DisclosureGroup(isExpanded: $cobaltExpanded) {
+                Text(isArabic
+                     ? "يحتاج تحميل الوسائط إلى عنوان خادم Cobalt تستضيفه بنفسك (ومفتاح API إن طلبه خادمك). واجهة cobalt.tools العامة لا تعمل مع هذا التطبيق."
+                     : "Media download needs your own self-hosted Cobalt instance URL (and API key if your instance requires one). The public cobalt.tools API will not work with this app.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                TextField(isArabic ? "عنوان خادم Cobalt" : "Cobalt instance URL", text: $settings.cobaltBaseUrl)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                TextField(isArabic ? "مفتاح Cobalt (اختياري)" : "Cobalt API key (optional)", text: $settings.cobaltApiKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } label: {
+                Text(isArabic ? "تحميل الوسائط" : "Media download")
+            }
+        }
+    }
+
+    private var appearanceSection: some View {
+        Section(isArabic ? "المظهر" : "Appearance") {
+            Picker(isArabic ? "اللغة" : "Language", selection: $settings.language) {
+                Text(isArabic ? "حسب النظام" : "System").tag("System")
+                Text("English").tag("English")
+                Text("العربية").tag("Arabic")
+            }
+            Picker(isArabic ? "السمة" : "Theme", selection: $settings.theme) {
+                Text(isArabic ? "حسب النظام" : "System").tag("System")
+                Text(isArabic ? "فاتح" : "Light").tag("Light")
+                Text(isArabic ? "داكن" : "Dark").tag("Dark")
+            }
+        }
+    }
+
+    private func persistCobaltUrl() {
+        if settings.defaultAction == "Download" && !settings.hasValidCobaltBaseUrl {
+            settings.defaultAction = "Ask"
+        }
+        settings.save()
     }
 
     private func fixerBinding(_ key: String, fallback: [String]) -> Binding<String> {

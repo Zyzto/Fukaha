@@ -16,6 +16,7 @@ All notable changes to Fukaha are documented here.
 - Settings migrations run once per process; unused settings setters and share-sheet strings are gone
 - Embedder health state stays on the Settings tab so a probe run does not redraw the whole app
 - Drop unused Compose Navigation / ViewModel dependencies
+- Split the iOS Settings form so Swift can type-check it on CI
 
 ## [0.3.1] — 2026-08-14
 
