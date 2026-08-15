@@ -4,7 +4,15 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.sp
+
+/** Keep schemes and paths in visual order when the UI is RTL. */
+fun TextStyle.asLtrUrl(): TextStyle = copy(
+    textDirection = TextDirection.Ltr,
+    textAlign = TextAlign.Left,
+)
 
 val FukahaTypography = Typography(
     displaySmall = TextStyle(

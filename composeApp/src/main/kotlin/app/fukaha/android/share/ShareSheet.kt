@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import app.fukaha.EmbedHealthStatus
 import app.fukaha.PreparedLink
 import app.fukaha.R
+import app.fukaha.android.theme.asLtrUrl
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -318,7 +319,7 @@ private fun LinkActionRow(
                             )
                             Text(
                                 text = url,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyMedium.asLtrUrl(),
                                 color = colors.onSurface,
                                 softWrap = true,
                                 modifier = Modifier.weight(1f),

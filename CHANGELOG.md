@@ -4,6 +4,12 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-08-15
+
+### Fixed
+- URL fields and share-sheet previews keep `https://` in order under Arabic RTL
+- Opening the Settings test link no longer cancels an in-progress embedder check
+
 ## [0.4.0] — 2026-08-15
 
 ### Added

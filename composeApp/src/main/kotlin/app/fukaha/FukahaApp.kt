@@ -37,12 +37,16 @@ class FukahaApp : Application() {
             LocaleHelper.apply(settingsStore.get().language)
         }
 
-        // Probes are started by MainActivity; stop them as soon as we leave the
-        // foreground so nothing runs in the background.
+        // Probes are started by MainActivity. Cancel only after a real background
+        // stay — a same-process jump to ShareActivity is not leaving the app.
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) {
+                    healthController.stayForegrounded()
+                }
+
                 override fun onStop(owner: LifecycleOwner) {
-                    healthController.cancel()
+                    healthController.scheduleCancelIfBackgrounded()
                 }
             },
         )

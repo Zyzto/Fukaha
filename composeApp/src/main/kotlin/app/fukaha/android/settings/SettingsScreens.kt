@@ -93,6 +93,7 @@ import app.fukaha.ShareAction
 import app.fukaha.UrlCleaner
 import app.fukaha.android.ShareActivity
 import app.fukaha.android.components.SettingsSection
+import app.fukaha.android.theme.asLtrUrl
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.delay
@@ -339,8 +340,14 @@ fun SettingsScreen(
                                         onChange(next.withDownloadClamped())
                                     },
                                     modifier = Modifier.fillMaxWidth(),
+                                    textStyle = MaterialTheme.typography.bodyLarge.asLtrUrl(),
                                     label = { Text(stringResource(R.string.cobalt_url)) },
-                                    placeholder = { Text(stringResource(R.string.cobalt_url_placeholder)) },
+                                    placeholder = {
+                                        Text(
+                                            stringResource(R.string.cobalt_url_placeholder),
+                                            style = MaterialTheme.typography.bodyLarge.asLtrUrl(),
+                                        )
+                                    },
                                     leadingIcon = {
                                         Icon(Icons.Outlined.Storage, contentDescription = null)
                                     },
@@ -545,7 +552,13 @@ private fun QuickLinkSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 4.dp),
-            placeholder = { Text(stringResource(R.string.quick_use_field_placeholder)) },
+            textStyle = MaterialTheme.typography.bodyLarge.asLtrUrl(),
+            placeholder = {
+                Text(
+                    stringResource(R.string.quick_use_field_placeholder),
+                    style = MaterialTheme.typography.bodyLarge.asLtrUrl(),
+                )
+            },
             leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null) },
             // Every action lives in the field, and the empty and filled states carry the
             // same number of buttons, so the section never grows or collapses while typing.

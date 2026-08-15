@@ -11,20 +11,20 @@ class AppUpdateTest {
 
     @Test
     fun normalizeStripsVPrefix() {
-        assertEquals("0.4.0", AppVersion.normalize("v0.4.0"))
-        assertEquals("0.4.0", AppVersion.normalize("V0.4.0"))
-        assertEquals("0.4.0", AppVersion.normalize(" 0.4.0 "))
+        assertEquals("0.4.1", AppVersion.normalize("v0.4.1"))
+        assertEquals("0.4.1", AppVersion.normalize("V0.4.1"))
+        assertEquals("0.4.1", AppVersion.normalize(" 0.4.1 "))
     }
 
     @Test
     fun comparesSemverAndPadsMissingParts() {
-        assertTrue(AppVersion.isNewer("0.4.1", "0.4.0"))
+        assertTrue(AppVersion.isNewer("0.4.2", "0.4.1"))
         assertTrue(AppVersion.isNewer("0.5.0", "0.4.9"))
         assertTrue(AppVersion.isNewer("1.0.0", "0.9.9"))
-        assertFalse(AppVersion.isNewer("0.4.0", "0.4.0"))
-        assertFalse(AppVersion.isNewer("0.3.9", "0.4.0"))
+        assertFalse(AppVersion.isNewer("0.4.1", "0.4.1"))
+        assertFalse(AppVersion.isNewer("0.4.0", "0.4.1"))
         assertEquals(0, AppVersion.compare("1.0", "1.0.0"))
-        assertTrue(AppVersion.isNewer("0.4.0", "0.4.0-debug"))
+        assertTrue(AppVersion.isNewer("0.4.1", "0.4.1-debug"))
     }
 
     @Test
@@ -33,7 +33,7 @@ class AppUpdateTest {
             """
             ### Added
             - Paste a link
-            **Full Changelog**: https://github.com/Zyzto/Fukaha/compare/v0.3.1...v0.4.0
+            **Full Changelog**: https://github.com/Zyzto/Fukaha/compare/v0.4.0...v0.4.1
             """.trimIndent(),
         )
         assertTrue(notes.startsWith("Added"))
@@ -54,7 +54,7 @@ class AppUpdateTest {
             }
             """.trimIndent(),
         )
-        val result = AppUpdateChecker.evaluate(dto, "0.4.0")
+        val result = AppUpdateChecker.evaluate(dto, "0.4.1")
         val available = result as UpdateCheckResult.Available
         assertEquals("0.5.0", available.release.version)
         assertTrue(available.release.changelog.contains("Update checker"))
@@ -63,10 +63,10 @@ class AppUpdateTest {
     @Test
     fun evaluateTreatsSameTagAsUpToDate() {
         val dto = GithubReleaseDto(
-            tagName = "v0.4.0",
-            htmlUrl = "https://github.com/Zyzto/Fukaha/releases/tag/v0.4.0",
+            tagName = "v0.4.1",
+            htmlUrl = "https://github.com/Zyzto/Fukaha/releases/tag/v0.4.1",
         )
-        assertEquals(UpdateCheckResult.UpToDate, AppUpdateChecker.evaluate(dto, "0.4.0"))
+        assertEquals(UpdateCheckResult.UpToDate, AppUpdateChecker.evaluate(dto, "0.4.1"))
     }
 
     @Test
@@ -96,7 +96,7 @@ class AppUpdateTest {
             htmlUrl = "https://example.com",
         )
         assertFalse(AppUpdatePolicy.shouldPrompt(release, "0.5.0"))
-        assertTrue(AppUpdatePolicy.shouldPrompt(release, "0.4.0"))
+        assertTrue(AppUpdatePolicy.shouldPrompt(release, "0.4.1"))
         assertTrue(AppUpdatePolicy.shouldPrompt(release, ""))
     }
 }
