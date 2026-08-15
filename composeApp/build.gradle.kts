@@ -68,7 +68,11 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
+                ?: if (!System.getenv("RELEASE_STORE_FILE").isNullOrBlank()) {
+                    error("RELEASE_STORE_FILE is set but release signing is incomplete")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
