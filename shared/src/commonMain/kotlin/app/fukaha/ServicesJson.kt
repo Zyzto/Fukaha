@@ -1,9 +1,38 @@
 package app.fukaha
 
 internal object ServicesJson {
-    // Bundled from https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f (broken entries kept; filtered at runtime)
+    // Assembled from several community collections of embed-fixer lists.
+    // Broken entries kept; filtered at runtime.
     val RAW: String = """
 {
+  "bilibili": {
+    "href": "https://bilibili.com",
+    "name": "Bilibili",
+    "services": [
+      {
+        "alternate_hosts": ["https://vxb23.tv"],
+        "author": null,
+        "description": "Bilibili embed fixer.",
+        "host": "https://vxbilibili.com",
+        "name": "BiliFix",
+        "repo": null
+      },
+      {
+        "author": "seriaati",
+        "description": "Bilibili embed fixer.",
+        "host": "https://fxbilibili.seria.moe",
+        "name": "fxBilibili",
+        "repo": "https://github.com/seriaati/fxBilibili"
+      },
+      {
+        "author": null,
+        "description": "A service that simplifies the process of sharing social media posts.",
+        "host": "https://bilibliez.com",
+        "name": "BilibiliEZ",
+        "repo": null
+      }
+    ]
+  },
   "bluesky": {
     "href": "https://bsky.app",
     "name": "Bluesky",
@@ -36,6 +65,73 @@ internal object ServicesJson {
         "host": "https://vxbsky.app",
         "name": "vxBsky",
         "repo": "https://github.com/dylanpdx/vxBsky"
+      },
+      {
+        "author": "FxEmbed",
+        "description": "Better social media embeds for Discord, Telegram, and more.",
+        "host": "https://fxbsky.app",
+        "name": "FxBluesky",
+        "repo": "https://github.com/FxEmbed/FxEmbed"
+      },
+      {
+        "author": "colduw",
+        "description": "Bluesky embed fixer.",
+        "host": "https://xbsky.app",
+        "name": "xbsky",
+        "repo": "https://github.com/colduw/xbsky"
+      },
+      {
+        "author": "goeo-",
+        "description": "Bluesky embed fixer.",
+        "host": "https://cbsky.app",
+        "name": "cbsky",
+        "repo": "https://github.com/goeo-/cbsky.app"
+      }
+    ]
+  },
+  "deviantart": {
+    "href": "https://deviantart.com",
+    "name": "DeviantArt",
+    "services": [
+      {
+        "author": "Tschrock",
+        "description": "Fix DeviantArt embeds.",
+        "host": "https://fixdeviantart.com",
+        "name": "fixDeviantArt",
+        "repo": "https://github.com/Tschrock/fixdeviantart"
+      }
+    ]
+  },
+  "facebook": {
+    "href": "https://facebook.com",
+    "name": "Facebook",
+    "services": [
+      {
+        "author": "4pii4",
+        "description": "Facebook embed fixer.",
+        "host": "https://facebed.com",
+        "name": "facebed",
+        "repo": "https://github.com/4pii4/facebed"
+      },
+      {
+        "author": "seriaati",
+        "description": "Facebook embed fixer.",
+        "host": "https://fxfb.seria.moe",
+        "name": "fxfacebook",
+        "repo": "https://github.com/seriaati/fxfacebook"
+      }
+    ]
+  },
+  "imgur": {
+    "href": "https://imgur.com",
+    "name": "Imgur",
+    "services": [
+      {
+        "author": null,
+        "description": "A service that simplifies the process of sharing social media posts.",
+        "host": "https://imgurez.com",
+        "name": "ImgurEZ",
+        "repo": null
       }
     ]
   },
@@ -55,6 +151,61 @@ internal object ServicesJson {
         "description": "A service that simplifies the process of sharing social media posts.",
         "host": "https://instagramez.com",
         "name": "InstagramEZ",
+        "repo": null
+      },
+      {
+        "author": "Akmal",
+        "description": "Unofficial InstaFix instance.",
+        "host": "https://uuinstagram.com",
+        "name": "uuinstagram",
+        "repo": "https://github.com/Wikidepia/InstaFix"
+      },
+      {
+        "author": "Akmal",
+        "description": "Unofficial InstaFix instance.",
+        "host": "https://eeinstagram.com",
+        "name": "eeinstagram",
+        "repo": "https://github.com/Wikidepia/InstaFix"
+      },
+      {
+        "author": "Akmal",
+        "description": "Unofficial InstaFix instance.",
+        "host": "https://fxstagram.com",
+        "name": "fxstagram",
+        "repo": "https://github.com/Wikidepia/InstaFix"
+      },
+      {
+        "author": "Lainmode",
+        "description": "Instagram embed proxy.",
+        "host": "https://vxinstagram.com",
+        "name": "InstagramEmbed",
+        "repo": "https://github.com/Lainmode/InstagramEmbed-vxinstagram"
+      },
+      {
+        "author": null,
+        "description": "Instagram embed proxy.",
+        "host": "https://kkinstagram.com",
+        "name": "kkScript",
+        "repo": null
+      },
+      {
+        "author": null,
+        "description": "Load balancer across Instagram embed instances.",
+        "host": "https://zzinstagram.com",
+        "name": "zzinstagram",
+        "repo": null
+      }
+    ]
+  },
+  "pinterest": {
+    "href": "https://pinterest.com",
+    "name": "Pinterest",
+    "services": [
+      {
+        "author": null,
+        "description": "A service that simplifies the process of sharing social media posts.",
+        "host": "https://pinterestez.com",
+        "name": "PinterestEZ",
         "repo": null
       }
     ]
@@ -97,6 +248,59 @@ internal object ServicesJson {
         "host": "https://redditez.com",
         "name": "RedditEZ",
         "repo": null
+      },
+      {
+        "author": "Dylan",
+        "description": "Reddit embed fixer.",
+        "host": "https://vxreddit.com",
+        "name": "vxreddit",
+        "repo": "https://github.com/dylanpdx/vxReddit"
+      }
+    ]
+  },
+  "roblox": {
+    "href": "https://roblox.com",
+    "name": "Roblox",
+    "services": [
+      {
+        "author": "vys69",
+        "description": "Roblox embed fixer.",
+        "host": "https://fixroblox.com",
+        "name": "Rxblox2",
+        "repo": "https://github.com/vys69/Rxblox2"
+      }
+    ]
+  },
+  "snapchat": {
+    "href": "https://snapchat.com",
+    "name": "Snapchat",
+    "services": [
+      {
+        "author": null,
+        "description": "A service that simplifies the process of sharing social media posts.",
+        "host": "https://snapchatez.com",
+        "name": "SnapchatEZ",
+        "repo": null
+      }
+    ]
+  },
+  "spotify": {
+    "href": "https://open.spotify.com",
+    "name": "Spotify",
+    "services": [
+      {
+        "author": "dotconnexion",
+        "description": "Spotify embed fixer.",
+        "host": "https://fxspotify.com",
+        "name": "fxspotify",
+        "repo": "https://github.com/dotconnexion/fxspotify"
+      },
+      {
+        "author": "gurrrrrrett3",
+        "description": "Spotify embed fixer.",
+        "host": "https://fixspotify.com",
+        "name": "FixSpotify",
+        "repo": "https://github.com/gurrrrrrett3/fixspotify"
       }
     ]
   },
@@ -110,6 +314,20 @@ internal object ServicesJson {
         "host": "https://fixthreads.net",
         "name": "fixthreads",
         "repo": "https://github.com/milanmdev/fixthreads"
+      },
+      {
+        "author": "seriaati",
+        "description": "Unofficial fixthreads instance.",
+        "host": "https://fixthreads.seria.moe",
+        "name": "fixthreads (seria)",
+        "repo": "https://github.com/milanmdev/fixthreads"
+      },
+      {
+        "author": "Everett Southwick",
+        "description": "Threads embed fixer.",
+        "host": "https://vxthreads.net",
+        "name": "vxThreads",
+        "repo": "https://github.com/everettsouthwick/vxThreads"
       }
     ]
   },
@@ -128,7 +346,7 @@ internal object ServicesJson {
         "author": "Allan Fernando",
         "description": "A better way to embed TikTok posts on Discord, Telegram, and more.",
         "host": "https://tfxktok.com/",
-        "name": "FxTikTok",
+        "name": "TfxkTok",
         "repo": null
       },
       {
@@ -151,6 +369,20 @@ internal object ServicesJson {
         "host": "https://tiktokez.com/",
         "name": "TikTokEZ",
         "repo": null
+      },
+      {
+        "author": null,
+        "description": "TikTok embed proxy.",
+        "host": "https://kktiktok.com",
+        "name": "kkScript",
+        "repo": null
+      },
+      {
+        "author": "Xetera",
+        "description": "TikTok embed fixer.",
+        "host": "https://fixtiktok.com",
+        "name": "FixTikTok",
+        "repo": "https://github.com/Xetera/fixtiktok"
       }
     ]
   },
@@ -159,11 +391,19 @@ internal object ServicesJson {
     "name": "Tumblr",
     "services": [
       {
+        "alternate_hosts": ["https://fx.dissonant.dev"],
         "author": "knuxify",
         "description": "Make Tumblr embeds on other websites way better.",
         "host": "https://tpmblr.com/",
         "name": "fxtumblr",
         "repo": "https://github.com/knuxify/fxtumblr"
+      },
+      {
+        "author": "MarkSuckerberg",
+        "description": "Tumblr embed fixer.",
+        "host": "https://txtumblr.com",
+        "name": "TxTumblr",
+        "repo": "https://github.com/MarkSuckerberg/txtumblr"
       }
     ]
   },
@@ -171,6 +411,13 @@ internal object ServicesJson {
     "href": "https://twitch.tv",
     "name": "Twitch",
     "services": [
+      {
+        "author": "seriaati",
+        "description": "Twitch clip embed fixer.",
+        "host": "https://fxtwitch.seria.moe",
+        "name": "fxtwitch",
+        "repo": "https://github.com/seriaati/fxtwitch"
+      },
       {
         "author": null,
         "brokenSince": "2024-11-10T15:33:04.676Z",
@@ -189,16 +436,42 @@ internal object ServicesJson {
       }
     ]
   },
-  "twitter": {
-    "href": "https://twitter.com",
-    "name": "Twitter",
+  "weibo": {
+    "href": "https://weibo.com",
+    "name": "Weibo",
     "services": [
       {
+        "author": null,
+        "description": "A service that simplifies the process of sharing social media posts.",
+        "host": "https://weiboez.com",
+        "name": "WeiboEZ",
+        "repo": null
+      }
+    ]
+  },
+  "x": {
+    "href": "https://x.com",
+    "name": "X (Twitter)",
+    "services": [
+      {
+        "alternate_hosts": ["https://vxtwitter.com"],
         "author": "Dylan",
-        "description": "Fix Twitter video embeds in Discord (and Telegram!)",
-        "host": "https://vxtwitter.com",
+        "description": "Fix X/Twitter video embeds in Discord (and Telegram!)",
+        "host": "https://fixvx.com",
         "name": "BetterTwitFix",
         "repo": "https://github.com/dylanpdx/BetterTwitFix"
+      },
+      {
+        "alternate_hosts": [
+          "https://fxtwitter.com",
+          "https://twittpr.com",
+          "https://xfixup.com"
+        ],
+        "author": "FxEmbed",
+        "description": "Better social media embeds for Discord, Telegram, and more.",
+        "host": "https://fixupx.com",
+        "name": "FxEmbed",
+        "repo": "https://github.com/FxEmbed/FxEmbed"
       },
       {
         "author": null,
@@ -209,16 +482,17 @@ internal object ServicesJson {
       }
     ]
   },
-  "x": {
-    "href": "https://x.com",
-    "name": "X",
+  "youtube": {
+    "href": "https://youtube.com",
+    "name": "YouTube",
     "services": [
       {
-        "author": "Dylan",
-        "description": "Fix Twitter video embeds in Discord (and Telegram!)",
-        "host": "https://fixvx.com",
-        "name": "BetterTwitFix",
-        "repo": "https://github.com/dylanpdx/BetterTwitFix"
+        "alternate_hosts": ["https://koutu.be"],
+        "author": "iGerman00",
+        "description": "YouTube embed fixer, including Shorts.",
+        "host": "https://koutube.com",
+        "name": "Koutube",
+        "repo": "https://github.com/iGerman00/koutube"
       }
     ]
   }

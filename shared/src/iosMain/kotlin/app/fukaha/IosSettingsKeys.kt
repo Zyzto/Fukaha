@@ -15,4 +15,7 @@ object IosSettingsKeys {
     const val THEME = "theme"
     const val DELETE_CACHE = "delete_cache_after_share"
     const val ONBOARDING_COMPLETED = "onboarding_completed"
+    const val CHECK_UPDATES = "check_updates_on_launch"
+    const val SKIPPED_UPDATE = "skipped_update_version"
+    const val LAST_UPDATE_CHECK = "last_update_check_epoch_ms"
 }

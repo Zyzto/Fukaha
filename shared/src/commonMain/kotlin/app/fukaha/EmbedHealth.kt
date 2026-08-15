@@ -14,10 +14,26 @@ data class EmbedHealthSnapshot(
     val statuses: Map<String, EmbedHealthStatus> = emptyMap(),
     val checkedAtEpochMs: Long? = null,
 ) {
+    val aliveCount: Int get() = statuses.values.count { it == EmbedHealthStatus.Alive }
+    val deadCount: Int get() = statuses.values.count { it == EmbedHealthStatus.Dead }
+
     fun statusOf(host: String): EmbedHealthStatus {
         val key = EmbedHealthKeys.normalize(host)
         return statuses[key] ?: EmbedHealthStatus.Unknown
     }
+}
+
+/** Live position of a sequential embedder probe. [currentIndex] is 1-based. */
+data class EmbedHealthProgress(
+    val currentHost: String,
+    val currentIndex: Int,
+    val total: Int,
+    val aliveCount: Int = 0,
+    val deadCount: Int = 0,
+) {
+    val displayHost: String get() = EmbedHealthKeys.displayHost(currentHost)
+    val completedCount: Int get() = (aliveCount + deadCount).coerceAtMost(total)
+    val fraction: Float get() = if (total <= 0) 0f else completedCount.toFloat() / total.toFloat()
 }
 
 object EmbedHealthKeys {
@@ -34,6 +50,12 @@ object EmbedHealthKeys {
         val key = normalize(host)
         return if (key.endsWith("/")) key else "$key/"
     }
+
+    fun displayHost(host: String): String =
+        normalize(host)
+            .removePrefix("https://")
+            .removePrefix("http://")
+            .trimEnd('/')
 }
 
 interface EmbedHealthStore {
@@ -49,6 +71,7 @@ interface EmbedHealthStore {
 
 object EmbedHealthPolicy {
     const val AUTO_REFRESH_INTERVAL_MS: Long = 6L * 60L * 60L * 1000L
+    const val MANUAL_REFRESH_COOLDOWN_MS: Long = 10L * 60L * 1000L
     const val INTER_HOST_DELAY_MS: Long = 750L
     const val PROBE_TIMEOUT_MS: Long = 5_000L
 
@@ -57,7 +80,26 @@ object EmbedHealthPolicy {
         return nowEpochMs - checkedAtEpochMs >= AUTO_REFRESH_INTERVAL_MS
     }
 
-    /** Preferred if Alive/Unknown; else first Alive; else preferred/default/first. */
+    /**
+     * A run only counts when at least one host answered: everything failing means the
+     * device is offline, not that the embedders died. Such runs keep the previous
+     * snapshot and leave the manual check available for an immediate retry.
+     */
+    fun isUsableResult(statuses: Map<String, EmbedHealthStatus>): Boolean =
+        statuses.values.any { it == EmbedHealthStatus.Alive }
+
+    /** Time left before another manual check is allowed; 0 once it is available. */
+    fun cooldownRemainingMs(
+        checkedAtEpochMs: Long?,
+        nowEpochMs: Long = PlatformClock.epochMillis(),
+    ): Long {
+        if (checkedAtEpochMs == null) return 0L
+        val elapsed = nowEpochMs - checkedAtEpochMs
+        if (elapsed < 0L) return 0L
+        return (MANUAL_REFRESH_COOLDOWN_MS - elapsed).coerceAtLeast(0L)
+    }
+
+    /** Preferred if Alive/Unknown; else first Alive, then first unprobed; else preferred/default/first. */
     fun pickService(
         services: List<EmbedService>,
         preferred: EmbedService?,
@@ -81,6 +123,7 @@ object EmbedHealthPolicy {
         }.distinctBy { EmbedHealthKeys.normalize(it.normalizedHost()) }
 
         ordered.firstOrNull { statusOf(it) == EmbedHealthStatus.Alive }?.let { return it }
+        ordered.firstOrNull { statusOf(it) == EmbedHealthStatus.Unknown }?.let { return it }
 
         return preferred ?: default ?: services.first()
     }

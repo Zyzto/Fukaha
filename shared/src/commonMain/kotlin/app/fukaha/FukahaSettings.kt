@@ -29,6 +29,9 @@ data class FukahaSettings(
     val theme: AppTheme = AppTheme.System,
     val deleteCacheAfterShare: Boolean = true,
     val onboardingCompleted: Boolean = false,
+    val checkUpdatesOnLaunch: Boolean = true,
+    val skippedUpdateVersion: String = "",
+    val lastUpdateCheckEpochMs: Long = 0L,
 ) {
     /** True when a non-blank http(s) Cobalt instance URL is configured. */
     val hasValidCobaltBaseUrl: Boolean

@@ -13,8 +13,8 @@ android {
         applicationId = "app.fukaha"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 5
-        versionName = "0.3.1"
+        versionCode = 6
+        versionName = "0.4.0"
     }
 
     buildFeatures {
@@ -54,13 +54,11 @@ android {
 dependencies {
     implementation(projects.shared)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.process)
-    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+    implementation(libs.ktor.client.okhttp)
     implementation(platform(libs.composeBom))
     implementation(libs.composeUi)
     implementation(libs.composeFoundation)
@@ -68,4 +66,19 @@ dependencies {
     implementation(libs.composeMaterialIcons)
     implementation(libs.composeUiToolingPreview)
     debugImplementation(libs.composeUiTooling)
+}
+
+tasks.register<Exec>("installAndLaunchDebug") {
+    group = "install"
+    description = "Install the debug APK and launch MainActivity"
+    dependsOn("installDebug")
+    val adb = android.sdkDirectory.resolve("platform-tools/adb")
+    commandLine(
+        adb.absolutePath,
+        "shell",
+        "am",
+        "start",
+        "-n",
+        "app.fukaha/app.fukaha.android.MainActivity",
+    )
 }

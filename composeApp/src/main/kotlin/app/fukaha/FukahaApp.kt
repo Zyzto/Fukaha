@@ -37,12 +37,10 @@ class FukahaApp : Application() {
             LocaleHelper.apply(settingsStore.get().language)
         }
 
+        // Probes are started by MainActivity; stop them as soon as we leave the
+        // foreground so nothing runs in the background.
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : DefaultLifecycleObserver {
-                override fun onStart(owner: LifecycleOwner) {
-                    healthController.startAutoIfDue()
-                }
-
                 override fun onStop(owner: LifecycleOwner) {
                     healthController.cancel()
                 }

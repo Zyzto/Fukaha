@@ -34,6 +34,15 @@ class IosSettingsStore(
                 defaults.boolForKey(KEY_DELETE_CACHE)
             },
             onboardingCompleted = defaults.boolForKey(KEY_ONBOARDING_COMPLETED),
+            checkUpdatesOnLaunch = if (defaults.objectForKey(KEY_CHECK_UPDATES) == null) {
+                true
+            } else {
+                defaults.boolForKey(KEY_CHECK_UPDATES)
+            },
+            skippedUpdateVersion = defaults.stringForKey(KEY_SKIPPED_UPDATE).orEmpty(),
+            lastUpdateCheckEpochMs = defaults.objectForKey(KEY_LAST_UPDATE_CHECK)?.let {
+                defaults.integerForKey(KEY_LAST_UPDATE_CHECK)
+            } ?: 0L,
         ).withDownloadClamped()
     }
 
@@ -48,6 +57,9 @@ class IosSettingsStore(
         defaults.setObject(next.theme.name, KEY_THEME)
         defaults.setBool(next.deleteCacheAfterShare, KEY_DELETE_CACHE)
         defaults.setBool(next.onboardingCompleted, KEY_ONBOARDING_COMPLETED)
+        defaults.setBool(next.checkUpdatesOnLaunch, KEY_CHECK_UPDATES)
+        defaults.setObject(next.skippedUpdateVersion, KEY_SKIPPED_UPDATE)
+        defaults.setInteger(next.lastUpdateCheckEpochMs, KEY_LAST_UPDATE_CHECK)
         defaults.synchronize()
     }
 
@@ -64,42 +76,6 @@ class IosSettingsStore(
         }
         defaults.setBool(true, KEY_COBALT_PUBLIC_CLEARED)
         defaults.synchronize()
-    }
-
-    override suspend fun setDefaultAction(action: ShareAction) {
-        update { it.copy(defaultAction = action) }
-    }
-
-    override suspend fun setPreferredFixer(platformKey: String, fixerHost: String) {
-        update { it.copy(preferredFixers = it.preferredFixers + (platformKey to fixerHost)) }
-    }
-
-    override suspend fun setCobaltBaseUrl(url: String) {
-        update { it.copy(cobaltBaseUrl = url) }
-    }
-
-    override suspend fun setCobaltApiKey(key: String) {
-        update { it.copy(cobaltApiKey = key) }
-    }
-
-    override suspend fun setResolveShortLinks(enabled: Boolean) {
-        update { it.copy(resolveShortLinks = enabled) }
-    }
-
-    override suspend fun setLanguage(language: AppLanguage) {
-        update { it.copy(language = language) }
-    }
-
-    override suspend fun setTheme(theme: AppTheme) {
-        update { it.copy(theme = theme) }
-    }
-
-    override suspend fun setDeleteCacheAfterShare(enabled: Boolean) {
-        update { it.copy(deleteCacheAfterShare = enabled) }
-    }
-
-    override suspend fun setOnboardingCompleted(completed: Boolean) {
-        update { it.copy(onboardingCompleted = completed) }
     }
 
     private fun serializeFixers(map: Map<String, String>): String =
@@ -126,6 +102,9 @@ class IosSettingsStore(
         private const val KEY_THEME = "theme"
         private const val KEY_DELETE_CACHE = "delete_cache_after_share"
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+        private const val KEY_CHECK_UPDATES = "check_updates_on_launch"
+        private const val KEY_SKIPPED_UPDATE = "skipped_update_version"
+        private const val KEY_LAST_UPDATE_CHECK = "last_update_check_epoch_ms"
         private const val KEY_COBALT_PUBLIC_CLEARED = "cobalt_public_default_cleared"
     }
 }

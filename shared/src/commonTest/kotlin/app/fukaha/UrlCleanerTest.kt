@@ -4,7 +4,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class UrlCleanerTest {
@@ -39,13 +38,20 @@ class EmbedCatalogTest {
     private val catalog = EmbedCatalog.bundled()
 
     @Test
-    fun detectsTwitterAndRewrites() {
+    fun detectsTwitterAsXAndRewrites() {
         val url = "https://twitter.com/foo/status/123456?utm_source=share"
         val detected = catalog.detect(url)
-        assertEquals("twitter", detected.platformKey)
+        assertEquals("x", detected.platformKey)
         assertEquals("https://twitter.com/foo/status/123456", detected.cleanedUrl)
         val embed = catalog.rewriteToEmbed(url)
-        assertEquals("https://vxtwitter.com/foo/status/123456", embed)
+        assertEquals("https://fixvx.com/foo/status/123456", embed)
+    }
+
+    @Test
+    fun listsXOnceWithoutSeparateTwitterEntry() {
+        val keys = catalog.platformKeys()
+        assertTrue(keys.contains("x"))
+        assertFalse(keys.contains("twitter"))
     }
 
     @Test
@@ -64,15 +70,73 @@ class EmbedCatalogTest {
     }
 
     @Test
-    fun skipsBrokenTwitchServices() {
-        assertTrue(catalog.activeServices("twitch").isEmpty())
-        assertNull(catalog.rewriteToEmbed("https://twitch.tv/somechannel"))
+    fun skipsBrokenTwitchServicesAndUsesSeria() {
+        val twitch = catalog.platform("twitch")
+        assertNotNull(twitch)
+        assertTrue(twitch.services.any { it.isBroken && it.host.contains("fxtwitch.tv") })
+        assertTrue(catalog.activeServices("twitch").any { it.normalizedHost() == "https://fxtwitch.seria.moe" })
+        assertEquals("https://fxtwitch.seria.moe/somechannel", catalog.rewriteToEmbed("https://twitch.tv/somechannel"))
     }
 
     @Test
     fun listsActiveInstagramServices() {
         val services = catalog.activeServices("instagram")
         assertTrue(services.any { it.name == "InstaFix" })
+        assertTrue(services.any { it.normalizedHost() == "https://vxinstagram.com" })
         assertNotNull(catalog.defaultFixerHost("instagram"))
+    }
+
+    @Test
+    fun detectsNewPlatforms() {
+        assertEquals("youtube", catalog.detect("https://youtu.be/dQw4w9wg").platformKey)
+        assertEquals("https://koutube.com/watch?v=dQw4w9wg", catalog.rewriteToEmbed("https://youtube.com/watch?v=dQw4w9wg"))
+        assertEquals("facebook", catalog.detect("https://facebook.com/share/v/abc").platformKey)
+        assertEquals("https://facebed.com/share/v/abc", catalog.rewriteToEmbed("https://facebook.com/share/v/abc"))
+        assertEquals("https://fxbsky.app/profile/a.bsky.social/post/1", catalog.rewriteToEmbed(
+            "https://bsky.app/profile/a.bsky.social/post/1",
+            preferredFixerHost = "https://fxbsky.app",
+        ))
+    }
+
+    @Test
+    fun listsFamousPlatformsFirstAndOmitsSketchyOnes() {
+        val keys = catalog.platformKeys()
+        assertEquals(listOf("youtube", "instagram", "tiktok", "facebook", "x"), keys.take(5))
+        assertTrue("furaffinity" !in keys)
+        assertTrue("ifunny" !in keys)
+        assertTrue("newgrounds" !in keys)
+    }
+
+    @Test
+    fun catalogHasNoDuplicateHosts() {
+        val hosts = catalog.platformKeys().flatMap { key ->
+            catalog.platform(key)?.services.orEmpty().flatMap { service ->
+                listOf(service.normalizedHost().lowercase()) +
+                    service.alternateHosts.map { it.trim().trimEnd('/').lowercase() }
+            }
+        }
+        val duplicates = hosts.groupingBy { it }.eachCount().filter { it.value > 1 }
+        assertTrue(duplicates.isEmpty(), "duplicate hosts: $duplicates")
+    }
+
+    @Test
+    fun bundledCatalogIsSharedAndFromJsonIsIndependent() {
+        assertTrue(EmbedCatalog.bundled() === EmbedCatalog.bundled())
+        val custom = EmbedCatalog.fromJson(
+            """{"x":{"href":"https://x.com","name":"X","services":[]}}""",
+        )
+        assertTrue(custom !== EmbedCatalog.bundled())
+        assertEquals(listOf("x"), custom.platformKeys())
+        assertTrue(custom.activeServices("x").isEmpty())
+    }
+
+    @Test
+    fun derivedLookupsStayStableAcrossCalls() {
+        assertTrue(catalog.platformKeys() === catalog.platformKeys())
+        assertTrue(catalog.activeServices("instagram") === catalog.activeServices("instagram"))
+        assertEquals(
+            catalog.defaultFixerHost("instagram"),
+            catalog.defaultFixerHost("instagram"),
+        )
     }
 }

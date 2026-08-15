@@ -7,12 +7,31 @@ import kotlinx.serialization.json.decodeFromJsonElement
 class EmbedCatalog(
     private val platforms: Map<String, EmbedPlatform>,
 ) {
-    fun platformKeys(): List<String> = platforms.keys.sorted()
+    // A catalog is immutable once parsed, so everything derived from it is computed
+    // once. The settings list asks for these per platform on every recomposition.
+    private val orderedKeys: List<String> by lazy {
+        val rank = PLATFORM_ORDER.withIndex().associate { it.value to it.index }
+        platforms.keys.sortedWith(
+            compareBy<String> { rank[it] ?: Int.MAX_VALUE }.thenBy { it },
+        )
+    }
+
+    private val activeServicesByPlatform: Map<String, List<EmbedService>> by lazy {
+        platforms.mapValues { (_, platform) -> platform.services.filterNot { it.isBroken } }
+    }
+
+    private val defaultServiceByPlatform: Map<String, EmbedService> by lazy {
+        platforms.keys.mapNotNull { key ->
+            defaultService(key, activeServices(key))?.let { key to it }
+        }.toMap()
+    }
+
+    fun platformKeys(): List<String> = orderedKeys
 
     fun platform(key: String): EmbedPlatform? = platforms[key]
 
     fun activeServices(platformKey: String): List<EmbedService> =
-        platforms[platformKey]?.services?.filterNot { it.isBroken }.orEmpty()
+        activeServicesByPlatform[platformKey].orEmpty()
 
     fun detectPlatformKey(url: String): String? {
         val host = UrlCleaner.hostOf(url) ?: return null
@@ -40,33 +59,44 @@ class EmbedCatalog(
     ): String? {
         val cleaned = UrlCleaner.clean(url)
         val key = detectPlatformKey(cleaned) ?: return null
-        val services = activeServices(key)
-        if (services.isEmpty()) return null
-
-        val preferred = preferredFixerHost?.let { pref ->
-            val normalized = pref.trim().trimEnd('/')
-            services.firstOrNull {
-                it.normalizedHost().equals(normalized, ignoreCase = true) ||
-                    it.alternateHosts.any { alt ->
-                        alt.trim().trimEnd('/').equals(normalized, ignoreCase = true)
-                    } ||
-                    it.name.equals(normalized, ignoreCase = true)
-            }
-        }
-
-        val service = EmbedHealthPolicy.pickService(
-            services = services,
-            preferred = preferred,
-            default = defaultService(key, services),
-            health = health,
-        ) ?: return null
+        val service = effectiveService(key, preferredFixerHost, health) ?: return null
         return replaceHost(cleaned, service.normalizedHost())
     }
 
-    fun defaultFixerHost(platformKey: String): String? {
+    /**
+     * Fixer a link would really be sent to: the chosen one unless it is known dead,
+     * in which case a reachable service takes over. Mirrors [rewriteToEmbed] so the
+     * settings list can show what sharing will actually use.
+     */
+    fun effectiveService(
+        platformKey: String,
+        preferredFixerHost: String? = null,
+        health: Map<String, EmbedHealthStatus> = emptyMap(),
+    ): EmbedService? {
         val services = activeServices(platformKey)
-        return defaultService(platformKey, services)?.normalizedHost()
+        if (services.isEmpty()) return null
+        return EmbedHealthPolicy.pickService(
+            services = services,
+            preferred = serviceForHost(platformKey, preferredFixerHost),
+            default = defaultServiceByPlatform[platformKey],
+            health = health,
+        )
     }
+
+    /** Service owning [host], matching its alternate hosts and name too. */
+    fun serviceForHost(platformKey: String, host: String?): EmbedService? {
+        val normalized = host?.trim()?.trimEnd('/')?.takeIf { it.isNotEmpty() } ?: return null
+        return activeServices(platformKey).firstOrNull {
+            it.normalizedHost().equals(normalized, ignoreCase = true) ||
+                it.alternateHosts.any { alt ->
+                    alt.trim().trimEnd('/').equals(normalized, ignoreCase = true)
+                } ||
+                it.name.equals(normalized, ignoreCase = true)
+        }
+    }
+
+    fun defaultFixerHost(platformKey: String): String? =
+        defaultServiceByPlatform[platformKey]?.normalizedHost()
 
     private fun defaultService(platformKey: String, services: List<EmbedService>): EmbedService? {
         val preferredHost = DEFAULT_FIXERS[platformKey] ?: return services.firstOrNull()
@@ -91,40 +121,85 @@ class EmbedCatalog(
     }
 
     companion object {
+        /** Most-used networks first; unknown keys sort after these, A–Z. */
+        val PLATFORM_ORDER: List<String> = listOf(
+            "youtube",
+            "instagram",
+            "tiktok",
+            "facebook",
+            "x",
+            "reddit",
+            "snapchat",
+            "spotify",
+            "pinterest",
+            "threads",
+            "twitch",
+            "tumblr",
+            "bluesky",
+            "imgur",
+            "roblox",
+            "pixiv",
+            "deviantart",
+            "bilibili",
+            "weibo",
+        )
+
         val DEFAULT_FIXERS: Map<String, String> = mapOf(
+            "bilibili" to "https://vxbilibili.com",
             "bluesky" to "https://bskx.app",
+            "deviantart" to "https://fixdeviantart.com",
+            "facebook" to "https://facebed.com",
+            "imgur" to "https://imgurez.com",
             "instagram" to "https://ddinstagram.com",
+            "pinterest" to "https://pinterestez.com",
+            "pixiv" to "https://phixiv.net",
             "reddit" to "https://rxddit.com",
+            "roblox" to "https://fixroblox.com",
+            "snapchat" to "https://snapchatez.com",
+            "spotify" to "https://fxspotify.com",
             "threads" to "https://fixthreads.net",
             "tiktok" to "https://tnktok.com",
             "tumblr" to "https://tpmblr.com",
-            "twitter" to "https://vxtwitter.com",
+            "twitch" to "https://fxtwitch.seria.moe",
+            "weibo" to "https://weiboez.com",
             "x" to "https://fixvx.com",
-            "pixiv" to "https://phixiv.net",
+            "youtube" to "https://koutube.com",
         )
 
         private val hostToPlatform: Map<String, String> = mapOf(
+            "b23.tv" to "bilibili",
+            "bilibili.com" to "bilibili",
             "bsky.app" to "bluesky",
+            "deviantart.com" to "deviantart",
+            "facebook.com" to "facebook",
+            "fb.com" to "facebook",
+            "fb.watch" to "facebook",
+            "imgur.com" to "imgur",
             "instagram.com" to "instagram",
             "instagr.am" to "instagram",
+            "pin.it" to "pinterest",
+            "pinterest.com" to "pinterest",
             "pixiv.net" to "pixiv",
-            "www.pixiv.net" to "pixiv",
             "reddit.com" to "reddit",
             "old.reddit.com" to "reddit",
             "new.reddit.com" to "reddit",
             "redd.it" to "reddit",
+            "roblox.com" to "roblox",
+            "snapchat.com" to "snapchat",
+            "spotify.com" to "spotify",
             "threads.net" to "threads",
             "threads.com" to "threads",
             "tiktok.com" to "tiktok",
-            "www.tiktok.com" to "tiktok",
             "tumblr.com" to "tumblr",
-            "www.tumblr.com" to "tumblr",
             "twitch.tv" to "twitch",
-            "www.twitch.tv" to "twitch",
-            "twitter.com" to "twitter",
-            "mobile.twitter.com" to "twitter",
+            "twitter.com" to "x",
+            "mobile.twitter.com" to "x",
+            "weibo.cn" to "weibo",
+            "weibo.com" to "weibo",
             "x.com" to "x",
             "mobile.x.com" to "x",
+            "youtube.com" to "youtube",
+            "youtu.be" to "youtube",
         )
 
         private val json = Json {
@@ -140,6 +215,9 @@ class EmbedCatalog(
             return EmbedCatalog(platforms)
         }
 
-        fun bundled(): EmbedCatalog = fromJson(ServicesJson.RAW)
+        /** Immutable, so every caller can share one parse of the bundled catalog. */
+        private val bundledCatalog: EmbedCatalog by lazy { fromJson(ServicesJson.RAW) }
+
+        fun bundled(): EmbedCatalog = bundledCatalog
     }
 }

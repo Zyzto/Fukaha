@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
+import app.fukaha.FukahaApp
 import app.fukaha.FukahaSettings
 import app.fukaha.MediaDownloadResult
 import app.fukaha.PreparedLink
@@ -87,29 +88,9 @@ class ShareActivity : AppCompatActivity() {
                     }
                     ShareAction.Download -> {
                         downloading = true
-                        val result = withContext(Dispatchers.IO) {
-                            app.bridge.download(
-                                prepared!!.detected.cleanedUrl,
-                                settings,
-                                mediaCacheDir().absolutePath,
-                            )
-                        }
+                        val shared = downloadAndShare(app, prepared!!, settings)
                         downloading = false
-                        when (result) {
-                            is MediaDownloadResult.Success -> {
-                                shareFile(result.filePath, result.mimeType)
-                                if (settings.deleteCacheAfterShare) File(result.filePath).delete()
-                                finish()
-                            }
-                            is MediaDownloadResult.Failure -> {
-                                Toast.makeText(
-                                    this@ShareActivity,
-                                    downloadFailureMessage(result.message),
-                                    Toast.LENGTH_LONG,
-                                ).show()
-                                showSheetAfterAutoFail = true
-                            }
-                        }
+                        if (shared) finish() else showSheetAfterAutoFail = true
                     }
                 }
             }
@@ -147,32 +128,11 @@ class ShareActivity : AppCompatActivity() {
                             val link = prepared ?: return@ShareSheet
                             scope.launch {
                                 downloading = true
-                                val result = withContext(Dispatchers.IO) {
-                                    app.bridge.download(
-                                        link.detected.cleanedUrl,
-                                        settings,
-                                        mediaCacheDir().absolutePath,
-                                    )
-                                }
+                                val shared = downloadAndShare(app, link, settings)
                                 downloading = false
-                                when (result) {
-                                    is MediaDownloadResult.Success -> {
-                                        shareFile(result.filePath, result.mimeType)
-                                        if (settings.deleteCacheAfterShare) {
-                                            File(result.filePath).delete()
-                                        }
-                                        finish()
-                                    }
-                                    is MediaDownloadResult.Failure -> {
-                                        // Keep the sheet open so the error is visible; do not
-                                        // silently share an embed URL after a media-file tap.
-                                        Toast.makeText(
-                                            this@ShareActivity,
-                                            downloadFailureMessage(result.message),
-                                            Toast.LENGTH_LONG,
-                                        ).show()
-                                    }
-                                }
+                                // On failure the sheet stays open so the error is visible;
+                                // never silently share an embed URL after a media-file tap.
+                                if (shared) finish()
                             }
                         },
                         onCopyOriginal = {
@@ -199,6 +159,40 @@ class ShareActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         recreate()
+    }
+
+    /**
+     * Downloads the media behind [link] and hands it to the system chooser.
+     * Returns false when the download failed, leaving the caller to decide whether
+     * to fall back to the share sheet or keep it open.
+     */
+    private suspend fun downloadAndShare(
+        app: FukahaApp,
+        link: PreparedLink,
+        settings: FukahaSettings,
+    ): Boolean {
+        val result = withContext(Dispatchers.IO) {
+            app.bridge.download(
+                link.detected.cleanedUrl,
+                settings,
+                mediaCacheDir().absolutePath,
+            )
+        }
+        return when (result) {
+            is MediaDownloadResult.Success -> {
+                shareFile(result.filePath, result.mimeType)
+                if (settings.deleteCacheAfterShare) File(result.filePath).delete()
+                true
+            }
+            is MediaDownloadResult.Failure -> {
+                Toast.makeText(
+                    this,
+                    downloadFailureMessage(result.message),
+                    Toast.LENGTH_LONG,
+                ).show()
+                false
+            }
+        }
     }
 
     private fun mediaCacheDir(): File {

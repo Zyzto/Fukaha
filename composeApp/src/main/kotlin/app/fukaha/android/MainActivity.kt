@@ -4,25 +4,12 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Language
-import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,7 +19,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,20 +32,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import app.fukaha.AppLanguage
-import app.fukaha.AppTheme
+import app.fukaha.AppRelease
+import app.fukaha.AppUpdateChecker
+import app.fukaha.AppUpdatePolicy
+import app.fukaha.BuildConfig
 import app.fukaha.EmbedHealthSnapshot
 import app.fukaha.FukahaSettings
+import app.fukaha.PlatformClock
 import app.fukaha.R
+import app.fukaha.UpdateCheckResult
+import app.fukaha.android.components.LanguageMenuButton
+import app.fukaha.android.components.ThemeCycleButton
 import app.fukaha.android.onboarding.TutorialScreen
 import app.fukaha.android.settings.AboutScreen
 import app.fukaha.android.settings.SettingsScreen
+import app.fukaha.android.settings.UpdateAvailableDialog
 import app.fukaha.android.theme.FukahaTheme
 import app.fukaha.fukaha
 import java.io.File
@@ -79,12 +70,13 @@ class MainActivity : AppCompatActivity() {
             var settingsLoaded by remember { mutableStateOf(false) }
             var tutorialOpen by remember { mutableStateOf(false) }
             var tab by remember { mutableIntStateOf(0) }
+            var pendingRelease by remember { mutableStateOf<AppRelease?>(null) }
+            var updateChecking by remember { mutableStateOf(false) }
             val scope = rememberCoroutineScope()
             val snackbar = remember { SnackbarHostState() }
+            val uriHandler = LocalUriHandler.current
+            val updateChecker = remember { AppUpdateChecker() }
             val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
-            val health by app.healthController.observeSnapshot()
-                .collectAsState(initial = EmbedHealthSnapshot())
-            val healthChecking by app.healthController.inProgress.collectAsState()
 
             fun persist(next: FukahaSettings) {
                 val languageChanged = next.language != settings.language
@@ -103,6 +95,50 @@ class MainActivity : AppCompatActivity() {
                 settings = app.settingsStore.get()
                 LocaleHelper.apply(settings.language)
                 settingsLoaded = true
+                // Opening the app is the only moment the 6h check may kick in, so a
+                // share never waits on probes.
+                app.healthController.startAutoIfDue()
+            }
+
+            suspend fun runUpdateCheck(manual: Boolean) {
+                if (updateChecking) return
+                updateChecking = true
+                val result = withContext(Dispatchers.IO) {
+                    updateChecker.check(BuildConfig.VERSION_NAME)
+                }
+                val checkedAt = PlatformClock.epochMillis()
+                app.settingsStore.update { it.copy(lastUpdateCheckEpochMs = checkedAt) }
+                settings = settings.copy(lastUpdateCheckEpochMs = checkedAt)
+                updateChecking = false
+                when (result) {
+                    is UpdateCheckResult.Available -> {
+                        if (manual || AppUpdatePolicy.shouldPrompt(result.release, settings.skippedUpdateVersion)) {
+                            pendingRelease = result.release
+                        }
+                    }
+                    is UpdateCheckResult.UpToDate -> if (manual) {
+                        snackbar.showSnackbar(getString(R.string.update_up_to_date))
+                    }
+                    is UpdateCheckResult.Failed -> if (manual) {
+                        snackbar.showSnackbar(getString(R.string.update_check_failed))
+                    }
+                }
+            }
+
+            LaunchedEffect(
+                settingsLoaded,
+                settings.onboardingCompleted,
+                settings.checkUpdatesOnLaunch,
+                tutorialOpen,
+            ) {
+                if (!settingsLoaded || !settings.onboardingCompleted || !settings.checkUpdatesOnLaunch) {
+                    return@LaunchedEffect
+                }
+                if (tutorialOpen) return@LaunchedEffect
+                if (!AppUpdatePolicy.isLaunchCheckDue(settings.lastUpdateCheckEpochMs)) {
+                    return@LaunchedEffect
+                }
+                runUpdateCheck(manual = false)
             }
 
             FukahaTheme(theme = settings.theme) {
@@ -111,6 +147,10 @@ class MainActivity : AppCompatActivity() {
                 if (firstRun || tutorialOpen) {
                     TutorialScreen(
                         firstRun = firstRun,
+                        language = settings.language,
+                        theme = settings.theme,
+                        onLanguageSelect = { persist(settings.copy(language = it)) },
+                        onThemeSelect = { persist(settings.copy(theme = it)) },
                         onFinish = {
                             tutorialOpen = false
                             if (!settings.onboardingCompleted) {
@@ -181,7 +221,8 @@ class MainActivity : AppCompatActivity() {
                         snackbarHost = { SnackbarHost(snackbar) },
                     ) { padding ->
                         when (tab) {
-                            0 -> SettingsScreen(
+                            0 -> SettingsTab(
+                                controller = app.healthController,
                                 padding = padding,
                                 settings = settings,
                                 onChange = { persist(it) },
@@ -191,15 +232,30 @@ class MainActivity : AppCompatActivity() {
                                         snackbar.showSnackbar(getString(R.string.cache_cleared))
                                     }
                                 },
-                                health = health,
-                                healthChecking = healthChecking,
-                                onRefreshHealth = { app.healthController.refresh() },
                             )
                             else -> AboutScreen(
                                 padding = padding,
                                 onOpenTutorial = { tutorialOpen = true },
+                                onCheckUpdates = {
+                                    scope.launch { runUpdateCheck(manual = true) }
+                                },
+                                updateChecking = updateChecking,
                             )
                         }
+                    }
+                    pendingRelease?.let { release ->
+                        UpdateAvailableDialog(
+                            release = release,
+                            onViewRelease = {
+                                uriHandler.openUri(release.htmlUrl)
+                                pendingRelease = null
+                            },
+                            onLater = { pendingRelease = null },
+                            onSkip = {
+                                persist(settings.copy(skippedUpdateVersion = release.version))
+                                pendingRelease = null
+                            },
+                        )
                     }
                 }
             }
@@ -207,141 +263,32 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
+/**
+ * Owns the embedder-health state so a probe run, which reports progress every few
+ * hundred milliseconds, only recomposes the settings list and not the app shell.
+ */
 @Composable
-private fun LanguageMenuButton(
-    language: AppLanguage,
-    onSelect: (AppLanguage) -> Unit,
+private fun SettingsTab(
+    controller: EmbedHealthController,
+    padding: PaddingValues,
+    settings: FukahaSettings,
+    onChange: (FukahaSettings) -> Unit,
+    onClearCache: () -> Unit,
 ) {
-    var open by remember { mutableStateOf(false) }
-    val selected = LocaleHelper.resolve(language)
+    val health by controller.observeSnapshot().collectAsState(initial = EmbedHealthSnapshot())
+    val checking by controller.inProgress.collectAsState()
+    val progress by controller.progress.collectAsState()
+    val unreachable by controller.lastRunUnreachable.collectAsState()
 
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(
-                Icons.Outlined.Language,
-                contentDescription = stringResource(R.string.language),
-            )
-        }
-        DropdownMenu(
-            expanded = open,
-            onDismissRequest = { open = false },
-            modifier = Modifier
-                .widthIn(min = 200.dp)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-            shape = RoundedCornerShape(16.dp),
-        ) {
-            Column(modifier = Modifier.padding(vertical = 6.dp, horizontal = 6.dp)) {
-                LanguageMenuItem(
-                    label = "English",
-                    subtitle = "EN",
-                    selected = selected == AppLanguage.English,
-                    onClick = {
-                        onSelect(AppLanguage.English)
-                        open = false
-                    },
-                )
-                LanguageMenuItem(
-                    label = "العربية",
-                    subtitle = "AR",
-                    selected = selected == AppLanguage.Arabic,
-                    onClick = {
-                        onSelect(AppLanguage.Arabic)
-                        open = false
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LanguageMenuItem(
-    label: String,
-    subtitle: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
-            if (selected) {
-                Icon(
-                    imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ThemeCycleButton(
-    theme: AppTheme,
-    onSelect: (AppTheme) -> Unit,
-) {
-    val next = when (theme) {
-        AppTheme.System -> AppTheme.Light
-        AppTheme.Light -> AppTheme.Dark
-        AppTheme.Dark -> AppTheme.System
-    }
-    val label = when (theme) {
-        AppTheme.System -> stringResource(R.string.theme_system)
-        AppTheme.Light -> stringResource(R.string.theme_light)
-        AppTheme.Dark -> stringResource(R.string.theme_dark)
-    }
-    val contentDescription = stringResource(R.string.theme) + ": " + label
-    IconButton(onClick = { onSelect(next) }) {
-        when (theme) {
-            AppTheme.Light -> Icon(
-                imageVector = Icons.Outlined.LightMode,
-                contentDescription = contentDescription,
-            )
-            AppTheme.Dark -> Icon(
-                imageVector = Icons.Outlined.DarkMode,
-                contentDescription = contentDescription,
-            )
-            AppTheme.System -> Icon(
-                painter = painterResource(R.drawable.ic_routine),
-                contentDescription = contentDescription,
-            )
-        }
-    }
+    SettingsScreen(
+        padding = padding,
+        settings = settings,
+        onChange = onChange,
+        onClearCache = onClearCache,
+        health = health,
+        healthChecking = checking,
+        healthProgress = progress,
+        healthUnreachable = unreachable,
+        onRefreshHealth = controller::refresh,
+    )
 }

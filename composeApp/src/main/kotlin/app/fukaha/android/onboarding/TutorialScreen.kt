@@ -22,6 +22,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentPaste
@@ -47,7 +48,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.fukaha.AppLanguage
+import app.fukaha.AppTheme
 import app.fukaha.R
+import app.fukaha.android.components.LanguageMenuButton
+import app.fukaha.android.components.ThemeCycleButton
 import kotlinx.coroutines.launch
 
 private const val TUTORIAL_PAGES = 3
@@ -59,6 +64,10 @@ private const val TUTORIAL_PAGES = 3
 @Composable
 fun TutorialScreen(
     firstRun: Boolean,
+    language: AppLanguage,
+    theme: AppTheme,
+    onLanguageSelect: (AppLanguage) -> Unit,
+    onThemeSelect: (AppTheme) -> Unit,
     onFinish: () -> Unit,
 ) {
     val pager = rememberPagerState(pageCount = { TUTORIAL_PAGES })
@@ -87,6 +96,19 @@ fun TutorialScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 4.dp),
             ) {
+                Row(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    LanguageMenuButton(
+                        language = language,
+                        onSelect = onLanguageSelect,
+                    )
+                    ThemeCycleButton(
+                        theme = theme,
+                        onSelect = onThemeSelect,
+                    )
+                }
                 if (firstRun) {
                     TextButton(
                         onClick = onFinish,
@@ -344,17 +366,14 @@ private fun PasteHero() {
             tonalElevation = 2.dp,
             shadowElevation = 8.dp,
         ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
+            Column(modifier = Modifier.padding(18.dp)) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     color = colors.surfaceContainerLow,
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 16.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
@@ -376,21 +395,22 @@ private fun PasteHero() {
                             contentDescription = null,
                             tint = colors.primary,
                         )
-                    }
-                }
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    color = colors.primary,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = stringResource(R.string.quick_use_open),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = colors.onPrimary,
-                        )
+                        // Mirrors the real field, where opening the share screen is
+                        // a button inside the input rather than a row below it.
+                        Surface(
+                            modifier = Modifier.size(38.dp),
+                            shape = CircleShape,
+                            color = colors.primary,
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.AutoMirrored.Outlined.ArrowForward,
+                                    contentDescription = stringResource(R.string.quick_use_open),
+                                    tint = colors.onPrimary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }

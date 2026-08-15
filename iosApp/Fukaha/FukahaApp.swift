@@ -17,6 +17,10 @@ struct FukahaApp: App {
 struct ContentView: View {
     @State private var tab = 0
     @State private var settings = SettingsSnapshot.load()
+    @State private var pendingUpdate: PendingAppUpdate?
+    @State private var updateChecking = false
+    @State private var updateMessage: String?
+    private let facade = FukahaIosFacade()
 
     private var isArabic: Bool {
         switch settings.language {
@@ -32,11 +36,119 @@ struct ContentView: View {
             SettingsView(settings: $settings)
                 .tabItem { Label(isArabic ? "الإعدادات" : "Settings", systemImage: "gearshape") }
                 .tag(0)
-            AboutView(isArabic: isArabic)
+            AboutView(
+                isArabic: isArabic,
+                updateChecking: updateChecking,
+                onCheckUpdates: { runUpdateCheck(manual: true) },
+            )
                 .tabItem { Label(isArabic ? "حول" : "About", systemImage: "info.circle") }
                 .tag(1)
         }
         .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+        .task { runUpdateCheck(manual: false) }
+        .sheet(item: $pendingUpdate) { update in
+            UpdateAvailableView(
+                update: update,
+                isArabic: isArabic,
+                onSkip: {
+                    settings.skippedUpdateVersion = update.version
+                    settings.save()
+                    pendingUpdate = nil
+                },
+                onDismiss: { pendingUpdate = nil },
+            )
+        }
+        .alert(updateMessage ?? "", isPresented: Binding(
+            get: { updateMessage != nil },
+            set: { if !$0 { updateMessage = nil } },
+        )) {
+            Button(isArabic ? "حسناً" : "OK", role: .cancel) { updateMessage = nil }
+        }
+    }
+
+    private func currentVersion() -> String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+    }
+
+    private func runUpdateCheck(manual: Bool) {
+        if updateChecking { return }
+        if !manual {
+            guard settings.checkUpdatesOnLaunch else { return }
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let interval: Int64 = 24 * 60 * 60 * 1000
+            if settings.lastUpdateCheckEpochMs > 0 && now - settings.lastUpdateCheckEpochMs < interval {
+                return
+            }
+        }
+        updateChecking = true
+        facade.checkForUpdate(currentVersion: currentVersion()) { status, version, changelog, htmlUrl, _ in
+            DispatchQueue.main.async {
+                settings.lastUpdateCheckEpochMs = Int64(Date().timeIntervalSince1970 * 1000)
+                settings.save()
+                updateChecking = false
+                switch status {
+                case "available":
+                    if manual || version != settings.skippedUpdateVersion {
+                        pendingUpdate = PendingAppUpdate(
+                            version: version,
+                            changelog: changelog,
+                            htmlUrl: htmlUrl,
+                        )
+                    }
+                case "up_to_date":
+                    if manual {
+                        updateMessage = isArabic ? "لديك أحدث إصدار" : "You are on the latest version"
+                    }
+                default:
+                    if manual {
+                        updateMessage = isArabic ? "تعذّر البحث عن تحديثات" : "Could not check for updates"
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct PendingAppUpdate: Identifiable {
+    let version: String
+    let changelog: String
+    let htmlUrl: String
+    var id: String { version }
+}
+
+struct UpdateAvailableView: View {
+    let update: PendingAppUpdate
+    let isArabic: Bool
+    let onSkip: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("v\(update.version)")
+                        .font(.headline)
+                    Text(update.changelog.isEmpty
+                         ? (isArabic ? "لا توجد ملاحظات لهذا الإصدار." : "No release notes for this version.")
+                         : update.changelog)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                    if let url = URL(string: update.htmlUrl) {
+                        Link(isArabic ? "عرض الإصدار" : "View release", destination: url)
+                    }
+                    Button(isArabic ? "تخطَّ هذا الإصدار" : "Skip this version", action: onSkip)
+                        .padding(.top, 8)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
+            }
+            .navigationTitle(isArabic ? "يتوفر تحديث" : "Update available")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(isArabic ? "لاحقاً" : "Later", action: onDismiss)
+                }
+            }
+        }
     }
 }
 
@@ -49,6 +161,9 @@ struct SettingsSnapshot {
     var language: String = "System"
     var theme: String = "System"
     var preferredFixers: [String: String] = [:]
+    var checkUpdatesOnLaunch: Bool = true
+    var skippedUpdateVersion: String = ""
+    var lastUpdateCheckEpochMs: Int64 = 0
 
     static let suite = UserDefaults(suiteName: IosSettingsKeys.shared.APP_GROUP) ?? .standard
     private static let legacyPublicCobalt = "https://api.cobalt.tools"
@@ -76,6 +191,13 @@ struct SettingsSnapshot {
         }
         s.language = d.string(forKey: IosSettingsKeys.shared.LANGUAGE) ?? "System"
         s.theme = d.string(forKey: IosSettingsKeys.shared.THEME) ?? "System"
+        if d.object(forKey: IosSettingsKeys.shared.CHECK_UPDATES) != nil {
+            s.checkUpdatesOnLaunch = d.bool(forKey: IosSettingsKeys.shared.CHECK_UPDATES)
+        }
+        s.skippedUpdateVersion = d.string(forKey: IosSettingsKeys.shared.SKIPPED_UPDATE) ?? ""
+        if let stored = d.object(forKey: IosSettingsKeys.shared.LAST_UPDATE_CHECK) as? NSNumber {
+            s.lastUpdateCheckEpochMs = stored.int64Value
+        }
         if let raw = d.string(forKey: IosSettingsKeys.shared.PREFERRED_FIXERS) {
             s.preferredFixers = Dictionary(
                 uniqueKeysWithValues: raw.split(separator: "\n").compactMap { line -> (String, String)? in
@@ -124,6 +246,9 @@ struct SettingsSnapshot {
         d.set(deleteCacheAfterShare, forKey: IosSettingsKeys.shared.DELETE_CACHE)
         d.set(language, forKey: IosSettingsKeys.shared.LANGUAGE)
         d.set(theme, forKey: IosSettingsKeys.shared.THEME)
+        d.set(checkUpdatesOnLaunch, forKey: IosSettingsKeys.shared.CHECK_UPDATES)
+        d.set(skippedUpdateVersion, forKey: IosSettingsKeys.shared.SKIPPED_UPDATE)
+        d.set(NSNumber(value: lastUpdateCheckEpochMs), forKey: IosSettingsKeys.shared.LAST_UPDATE_CHECK)
         let raw = preferredFixers.map { "\($0.key)\t\($0.value)" }.joined(separator: "\n")
         d.set(raw, forKey: IosSettingsKeys.shared.PREFERRED_FIXERS)
     }
@@ -173,8 +298,34 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                Section(isArabic ? "خدمات المعاينة المفضّلة" : "Preferred embed fixers") {
+                    ForEach(Array(facade.platformKeys()), id: \.self) { key in
+                        let services = facade.serviceNames(platformKey: key)
+                        if !services.isEmpty {
+                            Picker(key.capitalized, selection: fixerBinding(key, fallback: services)) {
+                                ForEach(services, id: \.self) { row in
+                                    let parts = row.split(separator: "\t", maxSplits: 1).map(String.init)
+                                    let name = parts.first ?? row
+                                    let host = parts.count > 1 ? parts[1] : row
+                                    Text("\(name) (\(host))").tag(host)
+                                }
+                            }
+                        }
+                    }
+                }
                 Section(isArabic ? "الشبكة" : "Network") {
                     Toggle(isArabic ? "تتبّع الروابط المختصرة" : "Resolve short links", isOn: $settings.resolveShortLinks)
+                    Toggle(isArabic ? "حذف الملفات المؤقتة بعد المشاركة" : "Delete cache after share", isOn: $settings.deleteCacheAfterShare)
+                }
+                Section(isArabic ? "التحديثات" : "Updates") {
+                    Toggle(isArabic ? "البحث عن تحديثات عند الفتح" : "Check for updates on launch", isOn: $settings.checkUpdatesOnLaunch)
+                    Text(isArabic
+                         ? "يفحص إصدارات GitHub نحو مرة في اليوم. يمكنك الفحص أيضاً من صفحة حول."
+                         : "Looks at GitHub Releases about once a day. You can also check from About.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Section {
                     DisclosureGroup(isExpanded: $cobaltExpanded) {
                         Text(isArabic
                              ? "يحتاج تحميل الوسائط إلى عنوان خادم Cobalt تستضيفه بنفسك (ومفتاح API إن طلبه خادمك). واجهة cobalt.tools العامة لا تعمل مع هذا التطبيق."
@@ -190,7 +341,6 @@ struct SettingsView: View {
                     } label: {
                         Text(isArabic ? "تحميل الوسائط" : "Media download")
                     }
-                    Toggle(isArabic ? "حذف الملفات المؤقتة بعد المشاركة" : "Delete cache after share", isOn: $settings.deleteCacheAfterShare)
                 }
                 Section(isArabic ? "المظهر" : "Appearance") {
                     Picker(isArabic ? "اللغة" : "Language", selection: $settings.language) {
@@ -202,21 +352,6 @@ struct SettingsView: View {
                         Text(isArabic ? "حسب النظام" : "System").tag("System")
                         Text(isArabic ? "فاتح" : "Light").tag("Light")
                         Text(isArabic ? "داكن" : "Dark").tag("Dark")
-                    }
-                }
-                Section(isArabic ? "خدمات المعاينة المفضّلة" : "Preferred embed fixers") {
-                    ForEach(Array(facade.platformKeys()), id: \.self) { key in
-                        let services = facade.serviceNames(platformKey: key)
-                        if !services.isEmpty {
-                            Picker(key.capitalized, selection: fixerBinding(key, fallback: services)) {
-                                ForEach(services, id: \.self) { row in
-                                    let parts = row.split(separator: "\t", maxSplits: 1).map(String.init)
-                                    let name = parts.first ?? row
-                                    let host = parts.count > 1 ? parts[1] : row
-                                    Text("\(name) (\(host))").tag(host)
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -233,6 +368,7 @@ struct SettingsView: View {
             .onChange(of: settings.deleteCacheAfterShare) { _, _ in settings.save() }
             .onChange(of: settings.language) { _, _ in settings.save() }
             .onChange(of: settings.theme) { _, _ in settings.save() }
+            .onChange(of: settings.checkUpdatesOnLaunch) { _, _ in settings.save() }
         }
     }
 
@@ -254,9 +390,19 @@ struct SettingsView: View {
 
 struct AboutView: View {
     var isArabic: Bool
+    var updateChecking: Bool = false
+    var onCheckUpdates: () -> Void = {}
 
     private var appName: String { isArabic ? "فكها" : "Fukaha" }
     private let siteUrl = URL(string: "https://shenepoy.com")!
+    private static let creditSources: [(englishTitle: String, arabicTitle: String, url: String)] = [
+        ("Lexedia’s embed fixer list", "قائمة Lexedia لخدمات المعاينة", "https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f"),
+        ("FixTweetBot fixer list", "قائمة FixTweetBot", "https://github.com/Kyrela/FixTweetBot#awesome-fixers"),
+        ("mohsreg’s Discord embed list", "قائمة mohsreg لمعاينات ديسكورد", "https://gist.github.com/mohsreg/927bf8b2092515ee1a8ee88c3e4d2c14"),
+        ("meqativ’s embed fixer list", "قائمة meqativ لخدمات المعاينة", "https://gist.github.com/meqativ/ea15d319f7889a02c893605c62f148c2"),
+        ("Postrediori’s embed list", "قائمة Postrediori", "https://gist.github.com/Postrediori/cc52b0ca054179a91aab2e63582265b6"),
+        ("EmbedFixer plugin", "إضافة EmbedFixer", "https://github.com/k33bs/EmbedFixer"),
+    ]
 
     var body: some View {
         NavigationStack {
@@ -280,11 +426,37 @@ struct AboutView: View {
                     }
                     Divider()
                     Text(isArabic
-                         ? "قائمة خدمات المعاينة مأخوذة من قائمة Lexedia العامة. شكراً لمؤلفي VixBluesky وInstaFix وfxreddit وfxTikTok وBetterTwitFix والمشاريع ذات الصلة."
-                         : "Embed fixer list based on Lexedia’s public gist. Thanks to the authors of VixBluesky, InstaFix, fxreddit, fxTikTok, BetterTwitFix, and related projects.")
+                         ? "القائمة مجمّعة من عدة مجموعات مجتمعية. شكراً للقائمين عليها ولمؤلفي الخدمات المدرجة."
+                         : "The catalog is assembled from several community collections. Thanks to their maintainers and the authors of the listed services.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    Text("v0.3.1").font(.caption)
+                    ForEach(Self.creditSources, id: \.url) { source in
+                        Link(destination: URL(string: source.url)!) {
+                            Text(isArabic ? source.arabicTitle : source.englishTitle)
+                                .font(.footnote)
+                        }
+                    }
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(isArabic ? "الإصدار" : "Version")
+                                .font(.headline)
+                            Text(updateChecking
+                                 ? (isArabic ? "جاري فحص إصدارات GitHub…" : "Checking GitHub Releases…")
+                                 : "v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.4.0")")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(action: onCheckUpdates) {
+                            if updateChecking {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                            }
+                        }
+                        .disabled(updateChecking)
+                        .accessibilityLabel(isArabic ? "البحث عن تحديثات" : "Check for updates")
+                    }
                 }
                 .padding()
             }

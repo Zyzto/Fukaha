@@ -12,6 +12,8 @@
 xcuserdata/
 Pods/
 DerivedData/
+iosApp/Fukaha.xcodeproj/
+iosApp/build/
 *.apk
 *.aab
 *.ipa

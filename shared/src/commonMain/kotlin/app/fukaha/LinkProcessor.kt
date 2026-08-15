@@ -20,11 +20,6 @@ class LinkProcessor(
 ) {
     fun catalog(): EmbedCatalog = catalog
 
-    fun extractAndDetect(sharedText: String): DetectedLink? {
-        val url = UrlCleaner.extractFirstUrl(sharedText) ?: return null
-        return catalog.detect(url)
-    }
-
     suspend fun prepare(
         sharedText: String,
         settings: FukahaSettings,
@@ -52,18 +47,6 @@ class LinkProcessor(
             embedUrl = embedUrl,
             embedHealth = embedHealth,
         )
-    }
-
-    fun cleanUrl(url: String): String = UrlCleaner.clean(url)
-
-    fun embedUrl(
-        url: String,
-        settings: FukahaSettings,
-        health: Map<String, EmbedHealthStatus> = emptyMap(),
-    ): String? {
-        val detected = catalog.detect(url)
-        val preferred = detected.platformKey?.let { settings.preferredFixers[it] }
-        return catalog.rewriteToEmbed(detected.cleanedUrl, preferred, health)
     }
 
     suspend fun resolveRedirect(url: String): String? = runCatching {

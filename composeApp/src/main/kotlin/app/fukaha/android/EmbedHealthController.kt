@@ -2,11 +2,13 @@ package app.fukaha.android
 
 import app.fukaha.EmbedHealthChecker
 import app.fukaha.EmbedHealthPolicy
+import app.fukaha.EmbedHealthProgress
 import app.fukaha.EmbedHealthSnapshot
 import app.fukaha.EmbedHealthStore
 import app.fukaha.PlatformClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,9 +27,17 @@ class EmbedHealthController(
     private val _inProgress = MutableStateFlow(false)
     val inProgress: StateFlow<Boolean> = _inProgress.asStateFlow()
 
-    fun observeSnapshot() = store.observe()
+    private val _progress = MutableStateFlow<EmbedHealthProgress?>(null)
+    val progress: StateFlow<EmbedHealthProgress?> = _progress.asStateFlow()
 
-    suspend fun snapshot(): EmbedHealthSnapshot = store.get()
+    /** True when the last run reached nothing, so the user can retry right away. */
+    private val _lastRunUnreachable = MutableStateFlow(false)
+    val lastRunUnreachable: StateFlow<Boolean> = _lastRunUnreachable.asStateFlow()
+
+    /** Stable instance so Compose collection is not restarted on recomposition. */
+    private val snapshots: Flow<EmbedHealthSnapshot> = store.observe()
+
+    fun observeSnapshot(): Flow<EmbedHealthSnapshot> = snapshots
 
     fun startAutoIfDue() {
         scope.launch {
@@ -42,11 +52,24 @@ class EmbedHealthController(
         if (job?.isActive == true) return
         job = scope.launch {
             _inProgress.value = true
+            _lastRunUnreachable.value = false
+            _progress.value = EmbedHealthProgress(
+                currentHost = "",
+                currentIndex = 0,
+                total = checker.uniqueHosts().size,
+            )
             try {
-                val results = checker.refresh()
-                store.save(results, PlatformClock.epochMillis())
+                val results = checker.refresh { step ->
+                    _progress.value = step
+                }
+                val usable = EmbedHealthPolicy.isUsableResult(results)
+                _lastRunUnreachable.value = !usable
+                if (usable) {
+                    store.save(results, PlatformClock.epochMillis())
+                }
             } finally {
                 _inProgress.value = false
+                _progress.value = null
             }
         }
     }
@@ -55,5 +78,6 @@ class EmbedHealthController(
         job?.cancel()
         job = null
         _inProgress.value = false
+        _progress.value = null
     }
 }

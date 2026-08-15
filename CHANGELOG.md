@@ -2,6 +2,21 @@
 
 All notable changes to Fukaha are documented here.
 
+## [Unreleased]
+
+## [0.4.0] — 2026-08-15
+
+### Added
+- Check GitHub Releases on launch (about once a day) and from About; shows the changelog with Later / Skip this version / View release
+- Settings toggle to turn off the launch check (Obtainium / F-Droid users can leave it off)
+- Shared tests for link prepare, settings clamps, catalog identity, and cached health-host lists
+
+### Changed
+- Parse the bundled embed catalog once and reuse derived platform lookups
+- Settings migrations run once per process; unused settings setters and share-sheet strings are gone
+- Embedder health state stays on the Settings tab so a probe run does not redraw the whole app
+- Drop unused Compose Navigation / ViewModel dependencies
+
 ## [0.3.1] — 2026-08-14
 
 ### Added

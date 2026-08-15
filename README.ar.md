@@ -56,9 +56,9 @@
 |---|---|
 | **قائمة المشاركة** | تظهر في قائمة المشاركة على أندرويد للروابط والنص — ورقة سريعة، وليست تطبيقاً للتصفح. |
 | **رابط نظيف** | يزيل `utm_*` و`fbclid` و`igshid` وأشباهها، وينظّم اسم المضيف. |
-| **رابط معاينة** | يحوّله إلى خدمات مثل vxTwitter وddinstagram وfxTikTok من [قائمة Lexedia](https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f). |
+| **رابط معاينة** | يحوّله إلى خدمات مثل fixvx وddinstagram وfxTikTok من عدة مجموعات مجتمعية لقوائم خدمات المعاينة. |
 | **ملف وسائط** | تحميل اختياري عبر خادم Cobalt الخاص بك، ثم مشاركة الملف. |
-| **الإعدادات** | الإجراء الافتراضي، خدمة المعاينة لكل منصة، Cobalt، الروابط المختصرة، العربية والإنجليزية، السمة. |
+| **الإعدادات** | الإجراء الافتراضي، خدمة المعاينة لكل منصة، Cobalt، الروابط المختصرة، العربية والإنجليزية، السمة، البحث عن تحديثات. |
 | **خفيف** | بلا مزامنة في الخلفية وبلا حسابات — الشبكة عند المشاركة فقط. |
 
 **عند المشاركة إلى فكها**
@@ -114,7 +114,7 @@
 
 ### iOS
 
-المصادر تحت `iosApp/` و`iosShareExtension/`. اربط إطار <span dir="ltr">Shared</span> في Xcode — التفاصيل في [iosApp/README.md](iosApp/README.md). لا يتوفر بناء متجر بعد.
+ليس على المتجر بعد. التكامل المستمر يبني تطبيقاً للمحاكي بلا توقيع (لا يلزم حساب مطوّر مدفوع). للتشغيل محلياً أو للنشر لاحقاً بحساب مدفوع انظر [iosApp/README.md](iosApp/README.md).
 
 </div>
 
@@ -147,6 +147,8 @@ adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
 
 [رخصة غنو أفيرو العمومية الإصدار 3.0](https://www.gnu.org/licenses/agpl-3.0.html) — برمجيات حرة؛ إن عدّلت البرنامج وشغّلته كخدمة شبكية فيجب توفير الشيفرة المصدرية المقابلة.  
 النص الكامل: [LICENSE](LICENSE).
+
+قائمة خدمات المعاينة مأخوذة من عدة مجموعات مجتمعية، منها [Lexedia](https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f) و[FixTweetBot](https://github.com/Kyrela/FixTweetBot#awesome-fixers) و[mohsreg](https://gist.github.com/mohsreg/927bf8b2092515ee1a8ee88c3e4d2c14) و[meqativ](https://gist.github.com/meqativ/ea15d319f7889a02c893605c62f148c2) و[Postrediori](https://gist.github.com/Postrediori/cc52b0ca054179a91aab2e63582265b6) و[EmbedFixer](https://github.com/k33bs/EmbedFixer)، بالإضافة إلى مؤلفي الخدمات المدرجة.
 
 </div>
 

@@ -169,9 +169,12 @@ fun PreferredFixerPickerSheet(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     contentPadding = PaddingValues(bottom = 8.dp),
                 ) {
+                    val target = selectedHost.trim().trimEnd('/')
                     items(services, key = { it.normalizedHost() }) { service ->
-                        val selected = service.normalizedHost()
-                            .equals(selectedHost, ignoreCase = true)
+                        val selected = service.normalizedHost().equals(target, ignoreCase = true) ||
+                            service.alternateHosts.any {
+                                it.trim().trimEnd('/').equals(target, ignoreCase = true)
+                            }
                         FixerOptionCard(
                             service = service,
                             selected = selected,

@@ -50,9 +50,9 @@
 |---|---|
 | **Share sheet** | Appears in Android’s system share menu for text/links — overlay sheet, not a full browser app. |
 | **Clean link** | Strips `utm_*`, `fbclid`, `igshid`, and similar noise; normalizes hosts. |
-| **Embed link** | Rewrites to fixer hosts (vxTwitter, ddinstagram, fxTikTok, …) from [Lexedia’s list](https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f). |
+| **Embed link** | Rewrites to fixer hosts (fixvx, ddinstagram, fxTikTok, …) from several community collections of embed-fixer lists. |
 | **Media file** | Optional download via your own Cobalt instance, then re-share as a file. |
-| **Settings** | Default action, per-network fixer, Cobalt URL/key, short-link resolve, EN/AR, theme. |
+| **Settings** | Default action, per-network fixer, Cobalt URL/key, short-link resolve, EN/AR, theme, update check. |
 | **Lite** | No background sync, no accounts — network only when you share. |
 
 **Default actions**
@@ -96,13 +96,13 @@
 
 ### iOS
 
-Share Extension + Settings sources live under `iosApp/` and `iosShareExtension/`. Wire the KMP `Shared` framework in Xcode — see [iosApp/README.md](iosApp/README.md). Not shipped as a store build yet.
+Not on the App Store yet. CI builds an **unsigned Simulator app** (no Apple Developer account required). To run locally or later ship with a paid team, see [iosApp/README.md](iosApp/README.md).
 
 ---
 
 ## Develop
 
-**Requirements:** JDK 17 · Android SDK 35 · Android device/emulator (minSdk 26)
+**Requirements:** JDK 17 · Android SDK 35 · Android device/emulator (minSdk 26). iOS Simulator builds need a Mac + Xcode — see [iosApp/README.md](iosApp/README.md).
 
 ```bash
 export ANDROID_HOME=~/Android/Sdk   # or your SDK path
@@ -113,13 +113,15 @@ adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
 
 Open **Fukaha** for Settings / About, or share any social URL into it from another app.
 
+**Watch install:** with a device or emulator connected, run `./gradlew -t :composeApp:installAndLaunchDebug` (or the Cursor/VS Code task **Android: watch install + launch**). Gradle rebuilds, reinstalls, and relaunches Settings on save. This is not Compose Hot Reload / Live Edit — the app restarts and UI state is not kept.
+
 **Modules**
 
 | Module | Role |
 |--------|------|
 | `shared` | URL clean, embed catalog, Cobalt download, settings models (Android + iOS) |
 | `composeApp` | Android UI — share sheet + Settings/About |
-| `iosApp` / `iosShareExtension` | SwiftUI Settings + Share Extension (manual Xcode setup) |
+| `iosApp` / `iosShareExtension` | SwiftUI Settings + Share Extension (XcodeGen + Simulator CI) |
 
 **Media download:** set your own self-hosted Cobalt instance URL (and API key if required) under the collapsible Media download section in Settings (collapsed by default). There is no working public default — the public `cobalt.tools` API will not work with this app. Download options stay visible but disabled until a valid `http(s)` instance URL is configured.
 
@@ -141,14 +143,14 @@ Share menu → Fukaha → clean | embed | file → system share again
 
 | Workflow | Trigger | What it does |
 |----------|---------|----------------|
-| [CI](.github/workflows/ci.yml) | push / PR to `main` | Shared unit tests + debug APK assemble |
+| [CI](.github/workflows/ci.yml) | push / PR to `main`, or manual | Shared unit tests, debug APK, unsigned iOS Simulator app |
 | [Release](.github/workflows/release.yml) | tag `v*` / manual | Release APK artifact + GitHub Release |
 
 Tag a release:
 
 ```bash
-git tag v0.3.1
-git push origin v0.3.1
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 ---
@@ -164,7 +166,7 @@ This repository is **public**. Never commit keystores, API keys, or `local.prope
 [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html) — free software; if you modify and run it as a network service, you must offer the corresponding source.  
 Full text: [LICENSE](LICENSE).
 
-Embed fixer catalog credit: [Lexedia’s gist](https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f) and the authors of the listed services.
+Embed fixer catalog credit: several community collections, including [Lexedia](https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f), [FixTweetBot](https://github.com/Kyrela/FixTweetBot#awesome-fixers), [mohsreg](https://gist.github.com/mohsreg/927bf8b2092515ee1a8ee88c3e4d2c14), [meqativ](https://gist.github.com/meqativ/ea15d319f7889a02c893605c62f148c2), [Postrediori](https://gist.github.com/Postrediori/cc52b0ca054179a91aab2e63582265b6), and [EmbedFixer](https://github.com/k33bs/EmbedFixer), plus the authors of the listed services.
 
 ---
 

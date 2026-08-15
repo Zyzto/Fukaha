@@ -1,0 +1,88 @@
+name: Fukaha
+options:
+  bundleIdPrefix: app
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  defaultConfig: Debug
+settings:
+  base:
+    MARKETING_VERSION: 0.4.0
+    CURRENT_PROJECT_VERSION: 6
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: 16.0
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    FRAMEWORK_SEARCH_PATHS:
+      - $(inherited)
+      - $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+    OTHER_LDFLAGS:
+      - $(inherited)
+      - -framework
+      - Shared
+targets:
+  Fukaha:
+    type: application
+    platform: iOS
+    sources:
+      - path: Fukaha
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.fukaha
+        PRODUCT_NAME: Fukaha
+        INFOPLIST_FILE: Fukaha/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Fukaha
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        CODE_SIGN_ENTITLEMENTS: Fukaha/Fukaha.entitlements
+        TARGETED_DEVICE_FAMILY: "1,2"
+        LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
+    preBuildScripts:
+      - name: Compile Kotlin Framework
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          if [ -z "${JAVA_HOME:-}" ] && [ -x /usr/libexec/java_home ]; then
+            export JAVA_HOME="$(/usr/libexec/java_home 2>/dev/null || true)"
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+    dependencies:
+      - target: FukahaShare
+        embed: true
+        codeSign: false
+  FukahaShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ../iosShareExtension
+    preBuildScripts:
+      - name: Compile Kotlin Framework
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          if [ -z "${JAVA_HOME:-}" ] && [ -x /usr/libexec/java_home ]; then
+            export JAVA_HOME="$(/usr/libexec/java_home 2>/dev/null || true)"
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.fukaha.share
+        PRODUCT_NAME: FukahaShare
+        INFOPLIST_FILE: ../iosShareExtension/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Fukaha
+        CODE_SIGN_ENTITLEMENTS: ../iosShareExtension/FukahaShare.entitlements
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks
+schemes:
+  Fukaha:
+    shared: true
+    build:
+      targets:
+        Fukaha: all
+        FukahaShare: all

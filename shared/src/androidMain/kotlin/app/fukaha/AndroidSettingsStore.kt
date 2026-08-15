@@ -2,13 +2,17 @@ package app.fukaha
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -16,6 +20,8 @@ private val Context.fukahaDataStore: DataStore<Preferences> by preferencesDataSt
 
 class AndroidSettingsStore(private val context: Context) : SettingsStore {
     private val json = Json { ignoreUnknownKeys = true }
+    private val migrationLock = Mutex()
+    private var migrated = false
 
     private object Keys {
         val defaultAction = stringPreferencesKey("default_action")
@@ -27,6 +33,9 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
         val theme = stringPreferencesKey("theme")
         val deleteCacheAfterShare = booleanPreferencesKey("delete_cache_after_share")
         val onboardingCompleted = booleanPreferencesKey("onboarding_completed")
+        val checkUpdatesOnLaunch = booleanPreferencesKey("check_updates_on_launch")
+        val skippedUpdateVersion = stringPreferencesKey("skipped_update_version")
+        val lastUpdateCheckEpochMs = longPreferencesKey("last_update_check_epoch_ms")
         /** One-time: old builds defaulted language writes to English; prefer System now. */
         val languageFollowsSystemMigrated = booleanPreferencesKey("language_follows_system_migrated")
         /** One-time: clear former public api.cobalt.tools default. */
@@ -34,8 +43,7 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
     }
 
     override suspend fun get(): FukahaSettings {
-        migrateLanguageDefaultIfNeeded()
-        migrateCobaltPublicDefaultIfNeeded()
+        migrateIfNeeded()
         return context.fukahaDataStore.data.map { prefs ->
             FukahaSettings(
                 defaultAction = prefs[Keys.defaultAction]?.let { runCatching { ShareAction.valueOf(it) }.getOrNull() }
@@ -52,36 +60,51 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
                     ?: AppTheme.System,
                 deleteCacheAfterShare = prefs[Keys.deleteCacheAfterShare] ?: true,
                 onboardingCompleted = prefs[Keys.onboardingCompleted] ?: false,
+                checkUpdatesOnLaunch = prefs[Keys.checkUpdatesOnLaunch] ?: true,
+                skippedUpdateVersion = prefs[Keys.skippedUpdateVersion].orEmpty(),
+                lastUpdateCheckEpochMs = prefs[Keys.lastUpdateCheckEpochMs] ?: 0L,
             ).withDownloadClamped()
         }.first()
     }
 
-    private suspend fun migrateLanguageDefaultIfNeeded() {
-        context.fukahaDataStore.edit { prefs ->
-            if (prefs[Keys.languageFollowsSystemMigrated] == true) return@edit
-            val stored = prefs[Keys.language]
-            // Pre-System builds always persisted English as the default on any save.
-            if (stored == null || stored == AppLanguage.English.name) {
-                prefs[Keys.language] = AppLanguage.System.name
+    /**
+     * Migrations are persisted-flag guarded, so once this process has run them the
+     * result cannot change again; skipping repeat runs keeps [get] to a single read.
+     */
+    private suspend fun migrateIfNeeded() {
+        if (migrated) return
+        migrationLock.withLock {
+            if (migrated) return
+            context.fukahaDataStore.edit { prefs ->
+                migrateLanguageDefault(prefs)
+                migrateCobaltPublicDefault(prefs)
             }
-            prefs[Keys.languageFollowsSystemMigrated] = true
+            migrated = true
         }
     }
 
-    private suspend fun migrateCobaltPublicDefaultIfNeeded() {
-        context.fukahaDataStore.edit { prefs ->
-            if (prefs[Keys.cobaltPublicDefaultCleared] == true) return@edit
-            val stored = prefs[Keys.cobaltBaseUrl]
-            if (stored == null || FukahaSettings.isLegacyPublicCobaltBaseUrl(stored)) {
-                prefs[Keys.cobaltBaseUrl] = FukahaSettings.DEFAULT_COBALT_BASE_URL
-            }
-            if (prefs[Keys.defaultAction] == ShareAction.Download.name &&
-                !FukahaSettings.isValidCobaltBaseUrl(prefs[Keys.cobaltBaseUrl].orEmpty())
-            ) {
-                prefs[Keys.defaultAction] = ShareAction.Ask.name
-            }
-            prefs[Keys.cobaltPublicDefaultCleared] = true
+    private fun migrateLanguageDefault(prefs: MutablePreferences) {
+        if (prefs[Keys.languageFollowsSystemMigrated] == true) return
+        val stored = prefs[Keys.language]
+        // Pre-System builds always persisted English as the default on any save.
+        if (stored == null || stored == AppLanguage.English.name) {
+            prefs[Keys.language] = AppLanguage.System.name
         }
+        prefs[Keys.languageFollowsSystemMigrated] = true
+    }
+
+    private fun migrateCobaltPublicDefault(prefs: MutablePreferences) {
+        if (prefs[Keys.cobaltPublicDefaultCleared] == true) return
+        val stored = prefs[Keys.cobaltBaseUrl]
+        if (stored == null || FukahaSettings.isLegacyPublicCobaltBaseUrl(stored)) {
+            prefs[Keys.cobaltBaseUrl] = FukahaSettings.DEFAULT_COBALT_BASE_URL
+        }
+        if (prefs[Keys.defaultAction] == ShareAction.Download.name &&
+            !FukahaSettings.isValidCobaltBaseUrl(prefs[Keys.cobaltBaseUrl].orEmpty())
+        ) {
+            prefs[Keys.defaultAction] = ShareAction.Ask.name
+        }
+        prefs[Keys.cobaltPublicDefaultCleared] = true
     }
 
     override suspend fun update(transform: (FukahaSettings) -> FukahaSettings) {
@@ -96,42 +119,9 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
             prefs[Keys.theme] = next.theme.name
             prefs[Keys.deleteCacheAfterShare] = next.deleteCacheAfterShare
             prefs[Keys.onboardingCompleted] = next.onboardingCompleted
+            prefs[Keys.checkUpdatesOnLaunch] = next.checkUpdatesOnLaunch
+            prefs[Keys.skippedUpdateVersion] = next.skippedUpdateVersion
+            prefs[Keys.lastUpdateCheckEpochMs] = next.lastUpdateCheckEpochMs
         }
-    }
-
-    override suspend fun setDefaultAction(action: ShareAction) {
-        update { it.copy(defaultAction = action) }
-    }
-
-    override suspend fun setPreferredFixer(platformKey: String, fixerHost: String) {
-        update { it.copy(preferredFixers = it.preferredFixers + (platformKey to fixerHost)) }
-    }
-
-    override suspend fun setCobaltBaseUrl(url: String) {
-        update { it.copy(cobaltBaseUrl = url) }
-    }
-
-    override suspend fun setCobaltApiKey(key: String) {
-        update { it.copy(cobaltApiKey = key) }
-    }
-
-    override suspend fun setResolveShortLinks(enabled: Boolean) {
-        update { it.copy(resolveShortLinks = enabled) }
-    }
-
-    override suspend fun setLanguage(language: AppLanguage) {
-        update { it.copy(language = language) }
-    }
-
-    override suspend fun setTheme(theme: AppTheme) {
-        update { it.copy(theme = theme) }
-    }
-
-    override suspend fun setDeleteCacheAfterShare(enabled: Boolean) {
-        update { it.copy(deleteCacheAfterShare = enabled) }
-    }
-
-    override suspend fun setOnboardingCompleted(completed: Boolean) {
-        update { it.copy(onboardingCompleted = completed) }
     }
 }

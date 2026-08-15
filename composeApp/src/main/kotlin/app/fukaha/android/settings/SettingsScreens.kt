@@ -12,19 +12,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
@@ -41,14 +39,16 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -57,9 +57,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -69,6 +70,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -81,6 +83,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.fukaha.BuildConfig
 import app.fukaha.EmbedCatalog
+import app.fukaha.EmbedHealthPolicy
+import app.fukaha.EmbedHealthProgress
 import app.fukaha.EmbedHealthSnapshot
 import app.fukaha.EmbedHealthStatus
 import app.fukaha.FukahaSettings
@@ -91,10 +95,32 @@ import app.fukaha.android.ShareActivity
 import app.fukaha.android.components.SettingsSection
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.delay
 
 private const val TEST_SHARE_URL =
     "https://x.com/makkahregion/status/1902619525532512361" +
         "?utm_source=share&utm_medium=android_app&fbclid=IwAR0fukaha_test"
+
+/** Credited project name paired with the URL it links to. */
+private val CREDIT_SOURCES: List<Pair<Int, Int>> = listOf(
+    R.string.credits_lexedia to R.string.credits_lexedia_url,
+    R.string.credits_fixtweetbot to R.string.credits_fixtweetbot_url,
+    R.string.credits_mohsreg to R.string.credits_mohsreg_url,
+    R.string.credits_meqativ to R.string.credits_meqativ_url,
+    R.string.credits_postrediori to R.string.credits_postrediori_url,
+    R.string.credits_embedfixer to R.string.credits_embedfixer_url,
+)
+
+/** One settings row, resolved from the catalog plus the current health snapshot. */
+private data class FixerRowState(
+    val platformKey: String,
+    val platformName: String,
+    /** Null when no service could be resolved; the caller supplies the label. */
+    val serviceName: String?,
+    val host: String,
+    val healthStatus: EmbedHealthStatus,
+    val infoUrl: String?,
+)
 
 @Composable
 fun SettingsScreen(
@@ -104,6 +130,8 @@ fun SettingsScreen(
     onClearCache: () -> Unit,
     health: EmbedHealthSnapshot = EmbedHealthSnapshot(),
     healthChecking: Boolean = false,
+    healthProgress: EmbedHealthProgress? = null,
+    healthUnreachable: Boolean = false,
     onRefreshHealth: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -115,15 +143,26 @@ fun SettingsScreen(
     val platforms = remember {
         catalog.platformKeys().filter { catalog.activeServices(it).isNotEmpty() }
     }
-    val checkedAt = health.checkedAtEpochMs
-    val lastCheckedLabel = when {
-        healthChecking -> stringResource(R.string.embed_health_checking)
-        checkedAt == null -> stringResource(R.string.embed_health_never)
-        else -> stringResource(
-            R.string.embed_health_last_checked,
-            DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                .format(Date(checkedAt)),
-        )
+    // Derived once per settings/health change instead of on every recomposition, so
+    // the per-host progress ticks during a probe run do not redo ~19 lookups each.
+    val fixerRows = remember(platforms, settings.preferredFixers, health.statuses) {
+        platforms.map { key ->
+            val chosenHost = settings.preferredFixers[key]
+                ?: catalog.defaultFixerHost(key).orEmpty()
+            // Show the fixer sharing would really use, so a dead pick does not
+            // look like the app is stuck on an unreachable host.
+            val inUse = catalog.effectiveService(key, chosenHost, health.statuses)
+            val currentHost = inUse?.normalizedHost() ?: chosenHost
+            FixerRowState(
+                platformKey = key,
+                platformName = catalog.platform(key)?.name ?: key,
+                serviceName = inUse?.name,
+                host = currentHost,
+                healthStatus = health.statusOf(currentHost),
+                infoUrl = inUse?.repo?.takeIf { it.isNotBlank() }
+                    ?: currentHost.takeIf { it.startsWith("http") },
+            )
+        }
     }
 
     LazyColumn(
@@ -159,6 +198,33 @@ fun SettingsScreen(
         }
 
         item {
+            SettingsSection(title = stringResource(R.string.preferred_fixers)) {
+                EmbedHealthRow(
+                    health = health,
+                    checking = healthChecking,
+                    progress = healthProgress,
+                    unreachable = healthUnreachable,
+                    onRefresh = onRefreshHealth,
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                val unknownFixer = stringResource(R.string.preferred_fixer_unknown)
+                fixerRows.forEachIndexed { index, row ->
+                    PreferredFixerRow(
+                        platformName = row.platformName,
+                        serviceName = row.serviceName ?: unknownFixer,
+                        host = row.host,
+                        healthStatus = row.healthStatus,
+                        infoUrl = row.infoUrl,
+                        onClick = { fixerPlatform = row.platformKey },
+                    )
+                    if (index != fixerRows.lastIndex) {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                }
+            }
+        }
+
+        item {
             SettingsSection(title = stringResource(R.string.section_sharing)) {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.resolve_short_links)) },
@@ -181,6 +247,23 @@ fun SettingsScreen(
                         androidx.compose.material3.Switch(
                             checked = settings.deleteCacheAfterShare,
                             onCheckedChange = { onChange(settings.copy(deleteCacheAfterShare = it)) },
+                        )
+                    },
+                    colors = transparentListColors(),
+                )
+            }
+        }
+
+        item {
+            SettingsSection(title = stringResource(R.string.section_updates)) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.check_updates_on_launch)) },
+                    supportingContent = { Text(stringResource(R.string.check_updates_on_launch_hint)) },
+                    leadingContent = { Icon(Icons.Outlined.SystemUpdate, contentDescription = null) },
+                    trailingContent = {
+                        androidx.compose.material3.Switch(
+                            checked = settings.checkUpdatesOnLaunch,
+                            onCheckedChange = { onChange(settings.copy(checkUpdatesOnLaunch = it)) },
                         )
                     },
                     colors = transparentListColors(),
@@ -285,54 +368,6 @@ fun SettingsScreen(
         }
 
         item {
-            SettingsSection(title = stringResource(R.string.preferred_fixers)) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.embed_health_refresh)) },
-                    supportingContent = {
-                        Text(
-                            if (healthChecking) {
-                                stringResource(R.string.embed_health_checking)
-                            } else {
-                                "$lastCheckedLabel\n${stringResource(R.string.embed_health_refresh_hint)}"
-                            },
-                        )
-                    },
-                    leadingContent = {
-                        if (healthChecking) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                        } else {
-                            Icon(Icons.Outlined.Refresh, contentDescription = null)
-                        }
-                    },
-                    modifier = Modifier.clickable(enabled = !healthChecking, onClick = onRefreshHealth),
-                    colors = transparentListColors(),
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                platforms.forEachIndexed { index, key ->
-                    val platform = catalog.platform(key)
-                    val currentHost = settings.preferredFixers[key]
-                        ?: catalog.defaultFixerHost(key).orEmpty()
-                    val currentService = catalog.activeServices(key).firstOrNull {
-                        it.normalizedHost().equals(currentHost, ignoreCase = true)
-                    }
-                    PreferredFixerRow(
-                        platformName = platform?.name ?: key,
-                        serviceName = currentService?.name
-                            ?: stringResource(R.string.preferred_fixer_unknown),
-                        host = currentHost,
-                        healthStatus = health.statusOf(currentHost),
-                        infoUrl = currentService?.repo?.takeIf { it.isNotBlank() }
-                            ?: currentHost.takeIf { it.startsWith("http") },
-                        onClick = { fixerPlatform = key },
-                    )
-                    if (index != platforms.lastIndex) {
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    }
-                }
-            }
-        }
-
-        item {
             SettingsSection(title = stringResource(R.string.section_storage)) {
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.clear_cache)) },
@@ -349,8 +384,12 @@ fun SettingsScreen(
 
     fixerPlatform?.let { key ->
         val services = catalog.activeServices(key)
-        val selectedHost = settings.preferredFixers[key]
+        val chosenHost = settings.preferredFixers[key]
             ?: catalog.defaultFixerHost(key).orEmpty()
+        // Mark the fixer the row shows, which is the one links go through.
+        val selectedHost = catalog.effectiveService(key, chosenHost, health.statuses)
+            ?.normalizedHost()
+            ?: chosenHost
         PreferredFixerPickerSheet(
             platformName = catalog.platform(key)?.name ?: key,
             services = services,
@@ -367,6 +406,118 @@ fun SettingsScreen(
             },
             onDismiss = { fixerPlatform = null },
         )
+    }
+}
+
+/**
+ * One-line embedder check: title, a single status line, and a refresh button that
+ * stays disabled for an hour after a run that actually reached hosts.
+ */
+@Composable
+private fun EmbedHealthRow(
+    health: EmbedHealthSnapshot,
+    checking: Boolean,
+    progress: EmbedHealthProgress?,
+    unreachable: Boolean,
+    onRefresh: () -> Unit,
+) {
+    val checkedAt = health.checkedAtEpochMs
+    val timeFormat = remember { DateFormat.getTimeInstance(DateFormat.SHORT) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // Re-enable the button on its own when the cooldown runs out.
+    LaunchedEffect(checkedAt, checking) {
+        while (EmbedHealthPolicy.cooldownRemainingMs(checkedAt, System.currentTimeMillis()) > 0L) {
+            delay(30_000)
+            now = System.currentTimeMillis()
+        }
+        now = System.currentTimeMillis()
+    }
+    val remainingMs = EmbedHealthPolicy.cooldownRemainingMs(checkedAt, now)
+    val status = when {
+        checking -> progress?.takeIf { it.total > 0 }?.let {
+            stringResource(R.string.embed_health_progress, it.currentIndex, it.total)
+        } ?: stringResource(R.string.embed_health_checking)
+        unreachable -> stringResource(R.string.embed_health_offline)
+        checkedAt == null -> stringResource(R.string.embed_health_never)
+        else -> {
+            val counts = stringResource(
+                R.string.embed_health_counts,
+                health.aliveCount,
+                health.deadCount,
+            )
+            val trailing = if (remainingMs > 0L) {
+                val minutes = ((remainingMs + 59_999L) / 60_000L).toInt()
+                stringResource(R.string.embed_health_cooldown, minutes)
+            } else {
+                timeFormat.format(Date(checkedAt))
+            }
+            "$counts · $trailing"
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.embed_health_refresh),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = status,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (unreachable) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            if (checking) {
+                LinearProgressIndicator(
+                    progress = { progress?.fraction ?: 0f },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, end = 4.dp),
+                )
+            }
+        }
+        val context = LocalContext.current
+        val blockedReason = when {
+            checking -> stringResource(R.string.embed_health_busy_toast)
+            remainingMs > 0L -> stringResource(
+                R.string.embed_health_cooldown_toast,
+                ((remainingMs + 59_999L) / 60_000L).toInt(),
+            )
+            else -> null
+        }
+        // Kept tappable while greyed out so a blocked tap can explain itself.
+        IconButton(
+            onClick = {
+                if (blockedReason == null) {
+                    onRefresh()
+                } else {
+                    Toast.makeText(context, blockedReason, Toast.LENGTH_SHORT).show()
+                }
+            },
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Refresh,
+                contentDescription = stringResource(R.string.embed_health_refresh),
+                tint = if (blockedReason == null) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                },
+            )
+        }
     }
 }
 
@@ -388,25 +539,30 @@ private fun QuickLinkSection(
     val showInvalid = value.isNotBlank() && shareable == null
 
     SettingsSection(title = stringResource(R.string.section_quick_use)) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.quick_use_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(stringResource(R.string.quick_use_field_label)) },
-                placeholder = { Text(stringResource(R.string.quick_use_field_placeholder)) },
-                leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null) },
-                trailingIcon = {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            placeholder = { Text(stringResource(R.string.quick_use_field_placeholder)) },
+            leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null) },
+            // Every action lives in the field, and the empty and filled states carry the
+            // same number of buttons, so the section never grows or collapses while typing.
+            trailingIcon = {
+                Row(
+                    modifier = Modifier.padding(end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     if (value.isEmpty()) {
-                        IconButton(
+                        QuickLinkAction(
+                            icon = Icons.Outlined.Science,
+                            label = stringResource(R.string.quick_use_sample),
+                            onClick = onOpenSample,
+                        )
+                        QuickLinkAction(
+                            icon = Icons.Outlined.ContentPaste,
+                            label = stringResource(R.string.quick_use_paste),
                             onClick = {
                                 val pasted = clipboard.getText()?.text
                                 if (pasted.isNullOrBlank()) {
@@ -419,80 +575,71 @@ private fun QuickLinkSection(
                                     onValueChange(pasted.trim())
                                 }
                             },
-                        ) {
-                            Icon(
-                                Icons.Outlined.ContentPaste,
-                                contentDescription = stringResource(R.string.quick_use_paste),
-                            )
-                        }
+                        )
                     } else {
-                        IconButton(onClick = { onValueChange("") }) {
-                            Icon(
-                                Icons.Outlined.Close,
-                                contentDescription = stringResource(R.string.quick_use_clear),
-                            )
-                        }
+                        QuickLinkAction(
+                            icon = Icons.Outlined.Close,
+                            label = stringResource(R.string.quick_use_clear),
+                            onClick = { onValueChange("") },
+                        )
+                        QuickLinkAction(
+                            icon = Icons.AutoMirrored.Outlined.ArrowForward,
+                            label = stringResource(R.string.quick_use_open),
+                            enabled = shareable != null,
+                            filled = true,
+                            onClick = { shareable?.let(onOpen) },
+                        )
                     }
-                },
-                supportingText = if (showInvalid) {
-                    { Text(stringResource(R.string.quick_use_invalid)) }
-                } else {
-                    null
-                },
-                isError = showInvalid,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Go,
-                ),
-                keyboardActions = KeyboardActions(onGo = { shareable?.let(onOpen) }),
-                shape = MaterialTheme.shapes.medium,
-            )
-            // Only offer the CTA once there is something to open, so the section
-            // never shows a large dead button.
-            AnimatedVisibility(visible = shareable != null) {
-                Button(
-                    onClick = { shareable?.let(onOpen) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.large,
-                ) {
-                    Icon(
-                        Icons.Outlined.PlayCircleOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = stringResource(R.string.quick_use_open),
-                        style = MaterialTheme.typography.titleSmall,
-                    )
                 }
-            }
-            // The sample is a way out of the empty state; once there is a link of
-            // their own to run it is just noise.
-            AnimatedVisibility(
-                visible = value.isEmpty(),
-                modifier = Modifier.align(Alignment.Start),
-            ) {
-                TextButton(
-                    onClick = onOpenSample,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                ) {
-                    Icon(
-                        Icons.Outlined.PlayCircleOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.quick_use_sample),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-            }
-        }
+            },
+            // Always filled so swapping in the error keeps the row at one height.
+            supportingText = {
+                Text(
+                    text = if (showInvalid) {
+                        stringResource(R.string.quick_use_invalid)
+                    } else {
+                        stringResource(R.string.quick_use_hint)
+                    },
+                )
+            },
+            isError = showInvalid,
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Uri,
+                imeAction = ImeAction.Go,
+            ),
+            keyboardActions = KeyboardActions(onGo = { shareable?.let(onOpen) }),
+            shape = MaterialTheme.shapes.medium,
+        )
+    }
+}
+
+/** In-field button, sized near the 48.dp touch target while still leaving room for two. */
+@Composable
+private fun QuickLinkAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    filled: Boolean = false,
+) {
+    val content: @Composable () -> Unit = {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(24.dp))
+    }
+    if (filled) {
+        FilledIconButton(
+            onClick = onClick,
+            modifier = Modifier.size(44.dp),
+            enabled = enabled,
+            content = { content() },
+        )
+    } else {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(44.dp),
+            enabled = enabled,
+            content = { content() },
+        )
     }
 }
 
@@ -554,12 +701,13 @@ private fun shareableLink(raw: String): String? {
 fun AboutScreen(
     padding: PaddingValues,
     onOpenTutorial: () -> Unit,
+    onCheckUpdates: () -> Unit = {},
+    updateChecking: Boolean = false,
 ) {
     val uriHandler = LocalUriHandler.current
     val siteUrl = stringResource(R.string.developer_site_url)
     val githubUrl = stringResource(R.string.github_url)
     val donateUrl = stringResource(R.string.donate_url)
-    val creditsGistUrl = stringResource(R.string.credits_gist_url)
     val versionLabel = stringResource(R.string.version_value, BuildConfig.VERSION_NAME)
 
     LazyColumn(
@@ -595,8 +743,34 @@ fun AboutScreen(
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.version)) },
-                    supportingContent = { Text(versionLabel) },
+                    supportingContent = {
+                        Text(
+                            if (updateChecking) {
+                                stringResource(R.string.check_for_updates_checking)
+                            } else {
+                                versionLabel
+                            },
+                        )
+                    },
                     leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    trailingContent = {
+                        IconButton(
+                            onClick = onCheckUpdates,
+                            enabled = !updateChecking,
+                        ) {
+                            if (updateChecking) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Outlined.Refresh,
+                                    contentDescription = stringResource(R.string.check_for_updates),
+                                )
+                            }
+                        }
+                    },
                     colors = transparentListColors(),
                 )
             }
@@ -654,19 +828,23 @@ fun AboutScreen(
                     leadingContent = { Icon(Icons.Outlined.Link, contentDescription = null) },
                     colors = transparentListColors(),
                 )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.credits_open_gist)) },
-                    leadingContent = { Icon(Icons.Outlined.Code, contentDescription = null) },
-                    trailingContent = {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.OpenInNew,
-                            contentDescription = stringResource(R.string.credits_open_gist),
-                        )
-                    },
-                    modifier = Modifier.clickable { uriHandler.openUri(creditsGistUrl) },
-                    colors = transparentListColors(),
-                )
+                CREDIT_SOURCES.forEach { (labelRes, urlRes) ->
+                    val label = stringResource(labelRes)
+                    val url = stringResource(urlRes)
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    ListItem(
+                        headlineContent = { Text(label) },
+                        leadingContent = { Icon(Icons.Outlined.Code, contentDescription = null) },
+                        trailingContent = {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.OpenInNew,
+                                contentDescription = label,
+                            )
+                        },
+                        modifier = Modifier.clickable { uriHandler.openUri(url) },
+                        colors = transparentListColors(),
+                    )
+                }
             }
         }
     }
