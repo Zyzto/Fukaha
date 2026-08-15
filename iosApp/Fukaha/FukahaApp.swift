@@ -290,14 +290,14 @@ struct SettingsView: View {
                 appearanceSection
             }
             .navigationTitle(isArabic ? "الإعدادات" : "Settings")
-            .onChange(of: settings.defaultAction) { _, _ in settings.save() }
-            .onChange(of: settings.cobaltBaseUrl) { _, _ in persistCobaltUrl() }
-            .onChange(of: settings.cobaltApiKey) { _, _ in settings.save() }
-            .onChange(of: settings.resolveShortLinks) { _, _ in settings.save() }
-            .onChange(of: settings.deleteCacheAfterShare) { _, _ in settings.save() }
-            .onChange(of: settings.language) { _, _ in settings.save() }
-            .onChange(of: settings.theme) { _, _ in settings.save() }
-            .onChange(of: settings.checkUpdatesOnLaunch) { _, _ in settings.save() }
+            .onChange(of: settings.defaultAction) { _ in settings.save() }
+            .onChange(of: settings.cobaltBaseUrl) { _ in persistCobaltUrl() }
+            .onChange(of: settings.cobaltApiKey) { _ in settings.save() }
+            .onChange(of: settings.resolveShortLinks) { _ in settings.save() }
+            .onChange(of: settings.deleteCacheAfterShare) { _ in settings.save() }
+            .onChange(of: settings.language) { _ in settings.save() }
+            .onChange(of: settings.theme) { _ in settings.save() }
+            .onChange(of: settings.checkUpdatesOnLaunch) { _ in settings.save() }
         }
     }
 
