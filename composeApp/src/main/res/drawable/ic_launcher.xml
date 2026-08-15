@@ -12,8 +12,8 @@
     <group
         android:translateX="54"
         android:translateY="54"
-        android:scaleX="0.072"
-        android:scaleY="0.072">
+        android:scaleX="0.068"
+        android:scaleY="0.068">
         <group
             android:translateX="-507.9"
             android:translateY="-503.4">

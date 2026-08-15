@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD033 MD060 -->
 
 <p align="center">
-  <img src="assets/fukaha-logo.svg" alt="Fukaha" width="160" />
+  <img src="assets/fukaha-logo.svg" alt="Fukaha" width="200" />
 </p>
 
 <h1 align="center">Fukaha - فكها</h1>

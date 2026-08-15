@@ -3,7 +3,7 @@
 <div dir="rtl" lang="ar">
 
 <p align="center">
-  <img src="assets/fukaha-logo.svg" alt="فكها" width="160" />
+  <img src="assets/fukaha-logo.svg" alt="فكها" width="200" />
 </p>
 
 <h1 align="center">فكها — Fukaha</h1>

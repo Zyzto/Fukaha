@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Foreground from assets/fukaha-logo.svg. Safe zone: center 72dp, extra inset. -->
+<!-- Foreground from assets/fukaha-logo.svg. Snug in the 72dp circular mask. -->
 
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
@@ -11,8 +11,8 @@
     <group
         android:translateX="54"
         android:translateY="54"
-        android:scaleX="0.060"
-        android:scaleY="0.060">
+        android:scaleX="0.068"
+        android:scaleY="0.068">
         <group
             android:translateX="-507.9"
             android:translateY="-503.4">
