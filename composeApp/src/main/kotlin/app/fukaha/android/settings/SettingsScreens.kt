@@ -58,6 +58,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -73,6 +74,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -80,6 +82,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import app.fukaha.BuildConfig
 import app.fukaha.EmbedCatalog
@@ -544,86 +547,103 @@ private fun QuickLinkSection(
     val clipboard = LocalClipboardManager.current
     val shareable = remember(value) { shareableLink(value) }
     val showInvalid = value.isNotBlank() && shareable == null
+    val appDirection = LocalLayoutDirection.current
 
     SettingsSection(title = stringResource(R.string.section_quick_use)) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            textStyle = MaterialTheme.typography.bodyLarge.asLtrUrl(),
-            placeholder = {
-                Text(
-                    stringResource(R.string.quick_use_field_placeholder),
-                    style = MaterialTheme.typography.bodyLarge.asLtrUrl(),
-                )
-            },
-            leadingIcon = { Icon(Icons.Outlined.Link, contentDescription = null) },
-            // Every action lives in the field, and the empty and filled states carry the
-            // same number of buttons, so the section never grows or collapses while typing.
-            trailingIcon = {
-                Row(
-                    modifier = Modifier.padding(end = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (value.isEmpty()) {
-                        QuickLinkAction(
-                            icon = Icons.Outlined.Science,
-                            label = stringResource(R.string.quick_use_sample),
-                            onClick = onOpenSample,
-                        )
-                        QuickLinkAction(
-                            icon = Icons.Outlined.ContentPaste,
-                            label = stringResource(R.string.quick_use_paste),
-                            onClick = {
-                                val pasted = clipboard.getText()?.text
-                                if (pasted.isNullOrBlank()) {
-                                    Toast.makeText(
-                                        context,
-                                        context.getString(R.string.quick_use_clipboard_empty),
-                                        Toast.LENGTH_SHORT,
-                                    ).show()
-                                } else {
-                                    onValueChange(pasted.trim())
-                                }
+        // The field carries a URL, so Arabic gets the same left-to-right row as English:
+        // sample and link icon, the link itself, then paste; share only after a real URL.
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.asLtrUrl(),
+                placeholder = {
+                    Text(
+                        stringResource(R.string.quick_use_field_placeholder),
+                        style = MaterialTheme.typography.bodyLarge.asLtrUrl(),
+                    )
+                },
+                leadingIcon = {
+                    Row(
+                        modifier = Modifier.padding(start = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // Sample and paste only help while there is nothing to act on.
+                        if (value.isEmpty()) {
+                            QuickLinkAction(
+                                icon = Icons.Outlined.Science,
+                                label = stringResource(R.string.quick_use_sample),
+                                onClick = onOpenSample,
+                            )
+                        }
+                        Icon(Icons.Outlined.Link, contentDescription = null)
+                    }
+                },
+                trailingIcon = {
+                    Row(
+                        modifier = Modifier.padding(end = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (value.isEmpty()) {
+                            QuickLinkAction(
+                                icon = Icons.Outlined.ContentPaste,
+                                label = stringResource(R.string.quick_use_paste),
+                                onClick = {
+                                    val pasted = clipboard.getText()?.text
+                                    if (pasted.isNullOrBlank()) {
+                                        Toast.makeText(
+                                            context,
+                                            context.getString(R.string.quick_use_clipboard_empty),
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    } else {
+                                        onValueChange(pasted.trim())
+                                    }
+                                },
+                            )
+                        } else {
+                            QuickLinkAction(
+                                icon = Icons.Outlined.Close,
+                                label = stringResource(R.string.quick_use_clear),
+                                onClick = { onValueChange("") },
+                            )
+                        }
+                        if (shareable != null) {
+                            QuickLinkAction(
+                                icon = Icons.AutoMirrored.Outlined.ArrowForward,
+                                label = stringResource(R.string.quick_use_open),
+                                filled = true,
+                                onClick = { onOpen(shareable) },
+                            )
+                        }
+                    }
+                },
+                // Always filled so swapping in the error keeps the row at one height.
+                supportingText = {
+                    // Prose rather than a URL, so it still reads in the app's direction.
+                    CompositionLocalProvider(LocalLayoutDirection provides appDirection) {
+                        Text(
+                            text = if (showInvalid) {
+                                stringResource(R.string.quick_use_invalid)
+                            } else {
+                                stringResource(R.string.quick_use_hint)
                             },
                         )
-                    } else {
-                        QuickLinkAction(
-                            icon = Icons.Outlined.Close,
-                            label = stringResource(R.string.quick_use_clear),
-                            onClick = { onValueChange("") },
-                        )
-                        QuickLinkAction(
-                            icon = Icons.AutoMirrored.Outlined.ArrowForward,
-                            label = stringResource(R.string.quick_use_open),
-                            enabled = shareable != null,
-                            filled = true,
-                            onClick = { shareable?.let(onOpen) },
-                        )
                     }
-                }
-            },
-            // Always filled so swapping in the error keeps the row at one height.
-            supportingText = {
-                Text(
-                    text = if (showInvalid) {
-                        stringResource(R.string.quick_use_invalid)
-                    } else {
-                        stringResource(R.string.quick_use_hint)
-                    },
-                )
-            },
-            isError = showInvalid,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Uri,
-                imeAction = ImeAction.Go,
-            ),
-            keyboardActions = KeyboardActions(onGo = { shareable?.let(onOpen) }),
-            shape = MaterialTheme.shapes.medium,
-        )
+                },
+                isError = showInvalid,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Go,
+                ),
+                keyboardActions = KeyboardActions(onGo = { shareable?.let(onOpen) }),
+                shape = MaterialTheme.shapes.medium,
+            )
+        }
     }
 }
 

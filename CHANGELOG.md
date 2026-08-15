@@ -4,6 +4,12 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [0.4.4] — 2026-08-15
+
+### Changed
+- Launcher icon is a broom sweeping a broken chain: wood handle, Hisab/Adati green chain, gold sparkles
+- Paste-a-link field stays left-to-right in Arabic so sample, URL, and paste keep English order
+
 ## [0.4.3] — 2026-08-15
 
 ### Added

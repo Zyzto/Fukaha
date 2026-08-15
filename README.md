@@ -149,8 +149,8 @@ Share menu → Fukaha → clean | embed | file → system share again
 Tag a release:
 
 ```bash
-git tag v0.4.3
-git push origin v0.4.3
+git tag v0.4.4
+git push origin v0.4.4
 ```
 
 ---
