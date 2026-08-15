@@ -11,7 +11,12 @@ data class AppRelease(
     val changelog: String,
     val htmlUrl: String,
     val publishedAt: String? = null,
-)
+    val apkUrl: String? = null,
+    val apkName: String? = null,
+    val apkSizeBytes: Long? = null,
+) {
+    val canInstallInApp: Boolean get() = !apkUrl.isNullOrBlank()
+}
 
 sealed class UpdateCheckResult {
     data class Available(val release: AppRelease) : UpdateCheckResult()

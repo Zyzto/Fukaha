@@ -58,6 +58,66 @@ class AppUpdateTest {
         val available = result as UpdateCheckResult.Available
         assertEquals("0.5.0", available.release.version)
         assertTrue(available.release.changelog.contains("Update checker"))
+        assertEquals(null, available.release.apkUrl)
+        assertFalse(available.release.canInstallInApp)
+    }
+
+    @Test
+    fun evaluatePicksFukahaApkAsset() {
+        val dto = json.decodeFromString<GithubReleaseDto>(
+            """
+            {
+              "tag_name": "v0.5.0",
+              "html_url": "https://github.com/Zyzto/Fukaha/releases/tag/v0.5.0",
+              "assets": [
+                {
+                  "name": "notes.txt",
+                  "size": 12,
+                  "content_type": "text/plain",
+                  "browser_download_url": "https://example.com/notes.txt"
+                },
+                {
+                  "name": "other.apk",
+                  "size": 100,
+                  "content_type": "application/vnd.android.package-archive",
+                  "browser_download_url": "https://example.com/other.apk"
+                },
+                {
+                  "name": "fukaha-0.5.0.apk",
+                  "size": 4242424,
+                  "content_type": "application/vnd.android.package-archive",
+                  "browser_download_url": "https://github.com/Zyzto/Fukaha/releases/download/v0.5.0/fukaha-0.5.0.apk"
+                }
+              ]
+            }
+            """.trimIndent(),
+        )
+        val result = AppUpdateChecker.evaluate(dto, "0.4.2") as UpdateCheckResult.Available
+        assertEquals(
+            "https://github.com/Zyzto/Fukaha/releases/download/v0.5.0/fukaha-0.5.0.apk",
+            result.release.apkUrl,
+        )
+        assertEquals("fukaha-0.5.0.apk", result.release.apkName)
+        assertEquals(4242424L, result.release.apkSizeBytes)
+        assertTrue(result.release.canInstallInApp)
+    }
+
+    @Test
+    fun pickApkFallsBackToAnyApkName() {
+        val asset = GithubApkAsset.pick(
+            listOf(
+                GithubAssetDto(
+                    name = "checksums.txt",
+                    browserDownloadUrl = "https://example.com/sum",
+                ),
+                GithubAssetDto(
+                    name = "app.apk",
+                    size = 9,
+                    browserDownloadUrl = "https://example.com/app.apk",
+                ),
+            ),
+        )
+        assertEquals("https://example.com/app.apk", asset?.browserDownloadUrl)
     }
 
     @Test

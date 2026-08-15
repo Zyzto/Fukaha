@@ -4,6 +4,11 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [0.4.3] — 2026-08-15
+
+### Added
+- Update dialog can download the GitHub APK and open the system installer instead of only linking to the release page
+
 ## [0.4.2] — 2026-08-15
 
 ### Fixed

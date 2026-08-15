@@ -1,8 +1,10 @@
 package app.fukaha.android
 
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -52,9 +54,13 @@ import app.fukaha.android.settings.AboutScreen
 import app.fukaha.android.settings.SettingsScreen
 import app.fukaha.android.settings.UpdateAvailableDialog
 import app.fukaha.android.theme.FukahaTheme
+import app.fukaha.android.update.ApkUpdateUiState
+import app.fukaha.android.update.ApkUpdater
 import app.fukaha.fukaha
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -72,10 +78,72 @@ class MainActivity : AppCompatActivity() {
             var tab by remember { mutableIntStateOf(0) }
             var pendingRelease by remember { mutableStateOf<AppRelease?>(null) }
             var updateChecking by remember { mutableStateOf(false) }
+            var apkUpdateState by remember { mutableStateOf<ApkUpdateUiState>(ApkUpdateUiState.Idle) }
+            var apkUpdateJob by remember { mutableStateOf<Job?>(null) }
             val scope = rememberCoroutineScope()
             val snackbar = remember { SnackbarHostState() }
             val uriHandler = LocalUriHandler.current
             val updateChecker = remember { AppUpdateChecker() }
+
+            fun cancelApkUpdate() {
+                apkUpdateJob?.cancel()
+                apkUpdateJob = null
+                apkUpdateState = ApkUpdateUiState.Idle
+            }
+
+            suspend fun installRelease(release: AppRelease) {
+                val apkUrl = release.apkUrl
+                if (apkUrl.isNullOrBlank()) {
+                    uriHandler.openUri(release.htmlUrl)
+                    pendingRelease = null
+                    return
+                }
+                try {
+                    apkUpdateState = ApkUpdateUiState.Downloading(0f)
+                    val apk = ApkUpdater.download(this@MainActivity, release) { progress ->
+                        apkUpdateState = ApkUpdateUiState.Downloading(progress)
+                    }
+                    apkUpdateState = ApkUpdateUiState.Installing
+                    withContext(Dispatchers.IO) {
+                        ApkUpdater.install(this@MainActivity, apk)
+                    }
+                } catch (e: CancellationException) {
+                    apkUpdateState = ApkUpdateUiState.Idle
+                    throw e
+                } catch (e: Exception) {
+                    apkUpdateState = ApkUpdateUiState.Failed(
+                        e.message?.takeIf { it.isNotBlank() }
+                            ?: getString(R.string.update_failed),
+                    )
+                }
+            }
+
+            val unknownSourcesLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.StartActivityForResult(),
+            ) {
+                val release = pendingRelease ?: return@rememberLauncherForActivityResult
+                if (ApkUpdater.canRequestInstalls(this@MainActivity)) {
+                    apkUpdateJob?.cancel()
+                    apkUpdateJob = scope.launch { installRelease(release) }
+                }
+            }
+
+            fun startInstall(release: AppRelease) {
+                if (release.apkUrl.isNullOrBlank()) {
+                    uriHandler.openUri(release.htmlUrl)
+                    pendingRelease = null
+                    return
+                }
+                if (!ApkUpdater.canRequestInstalls(this@MainActivity)) {
+                    scope.launch {
+                        snackbar.showSnackbar(getString(R.string.update_allow_unknown))
+                    }
+                    unknownSourcesLauncher.launch(ApkUpdater.unknownSourcesIntent(this@MainActivity))
+                    return
+                }
+                apkUpdateJob?.cancel()
+                apkUpdateJob = scope.launch { installRelease(release) }
+            }
             val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
             fun persist(next: FukahaSettings) {
@@ -113,6 +181,7 @@ class MainActivity : AppCompatActivity() {
                 when (result) {
                     is UpdateCheckResult.Available -> {
                         if (manual || AppUpdatePolicy.shouldPrompt(result.release, settings.skippedUpdateVersion)) {
+                            cancelApkUpdate()
                             pendingRelease = result.release
                         }
                     }
@@ -246,12 +315,20 @@ class MainActivity : AppCompatActivity() {
                     pendingRelease?.let { release ->
                         UpdateAvailableDialog(
                             release = release,
+                            state = apkUpdateState,
+                            onUpdate = { startInstall(release) },
+                            onCancelDownload = { cancelApkUpdate() },
                             onViewRelease = {
+                                cancelApkUpdate()
                                 uriHandler.openUri(release.htmlUrl)
                                 pendingRelease = null
                             },
-                            onLater = { pendingRelease = null },
+                            onLater = {
+                                cancelApkUpdate()
+                                pendingRelease = null
+                            },
                             onSkip = {
+                                cancelApkUpdate()
                                 persist(settings.copy(skippedUpdateVersion = release.version))
                                 pendingRelease = null
                             },

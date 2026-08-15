@@ -55,6 +55,7 @@ class AppUpdateChecker(
         ): UpdateCheckResult {
             if (dto.draft || dto.tagName.isBlank()) return UpdateCheckResult.UpToDate
             val version = AppVersion.normalize(dto.tagName)
+            val apk = GithubApkAsset.pick(dto.assets)
             val release = AppRelease(
                 version = version,
                 tagName = dto.tagName,
@@ -62,6 +63,9 @@ class AppUpdateChecker(
                 changelog = ChangelogFormatter.displayNotes(dto.body),
                 htmlUrl = dto.htmlUrl.ifBlank { RELEASES_PAGE_URL },
                 publishedAt = dto.publishedAt,
+                apkUrl = apk?.browserDownloadUrl,
+                apkName = apk?.name,
+                apkSizeBytes = apk?.size?.takeIf { it > 0L },
             )
             return if (AppVersion.isNewer(version, currentVersion)) {
                 UpdateCheckResult.Available(release)
@@ -90,4 +94,27 @@ internal data class GithubReleaseDto(
     @SerialName("published_at") val publishedAt: String? = null,
     val draft: Boolean = false,
     val prerelease: Boolean = false,
+    val assets: List<GithubAssetDto> = emptyList(),
 )
+
+@Serializable
+internal data class GithubAssetDto(
+    val name: String = "",
+    val size: Long = 0,
+    @SerialName("content_type") val contentType: String = "",
+    @SerialName("browser_download_url") val browserDownloadUrl: String = "",
+)
+
+internal object GithubApkAsset {
+    private const val APK_MIME = "application/vnd.android.package-archive"
+
+    fun pick(assets: List<GithubAssetDto>): GithubAssetDto? {
+        val apks = assets.filter { it.isApk() && it.browserDownloadUrl.isNotBlank() }
+        return apks.firstOrNull { it.name.startsWith("fukaha", ignoreCase = true) }
+            ?: apks.firstOrNull()
+    }
+
+    private fun GithubAssetDto.isApk(): Boolean =
+        contentType.equals(APK_MIME, ignoreCase = true) ||
+            name.endsWith(".apk", ignoreCase = true)
+}
