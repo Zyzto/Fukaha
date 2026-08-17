@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Untangle social links. Strip tracking and rewrite them to embed-friendly hosts." />
+
+  <title>Fukaha</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+
+  <!-- iOS / PWA meta tags & icons -->
+  <meta name="theme-color" content="#00687A" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Fukaha" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <!--
+    Material Symbols, subsetted with icon_names to just the glyphs this app draws.
+    display=block hides the glyph until the font lands rather than flashing its ligature name.
+  -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&icon_names=arrow_back,arrow_forward,check,cleaning_services,close,content_copy,content_paste,expand_more,info,install_mobile,link,open_in_browser,open_in_new,public,refresh,science,settings,share,visibility&display=block"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <!-- Visible until the Kotlin bundle paints, so a cold share never shows a blank screen. -->
+  <div id="boot-splash" aria-hidden="true">
+    <div class="boot-title">Fukaha</div>
+    <div class="boot-subtitle">…</div>
+  </div>
+
+  <div id="app"></div>
+
+  <script>
+    // The app removes the splash on its first render; this only covers a bundle that never runs.
+    setTimeout(function () {
+      var splash = document.getElementById("boot-splash");
+      if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+    }, 10000);
+  </script>
+
+  <script>
+    // `beforeinstallprompt` fires before the Kotlin bundle finishes loading, so the event has
+    // to be captured here and handed over. Mirrors window.hisabPwa in the Hisab web shell.
+    (function () {
+      var deferredPrompt = null;
+
+      function isStandaloneDisplay() {
+        try {
+          if (window.matchMedia("(display-mode: standalone)").matches) return true;
+          if (window.matchMedia("(display-mode: fullscreen)").matches) return true;
+          if (window.matchMedia("(display-mode: minimal-ui)").matches) return true;
+        } catch (_) {}
+        return !!navigator.standalone ||
+          (typeof document.referrer === "string" && document.referrer.indexOf("android-app://") === 0);
+      }
+
+      function notifyChanged() {
+        if (typeof window.fukahaPwa.onChanged === "function") {
+          try {
+            window.fukahaPwa.onChanged();
+          } catch (_) {}
+        }
+      }
+
+      window.fukahaPwa = {
+        canPrompt: false,
+        isStandalone: isStandaloneDisplay(),
+        onChanged: null,
+        promptInstall: function () {
+          if (!deferredPrompt) return Promise.resolve(false);
+          var promptEvent = deferredPrompt;
+          deferredPrompt = null;
+          window.fukahaPwa.canPrompt = false;
+          notifyChanged();
+          return promptEvent
+            .prompt()
+            .then(function () {
+              return promptEvent.userChoice;
+            })
+            .then(function (choice) {
+              return !!(choice && choice.outcome === "accepted");
+            })
+            .catch(function () {
+              return false;
+            });
+        },
+      };
+
+      window.addEventListener("beforeinstallprompt", function (e) {
+        e.preventDefault();
+        deferredPrompt = e;
+        window.fukahaPwa.canPrompt = true;
+        window.fukahaPwa.isStandalone = isStandaloneDisplay();
+        notifyChanged();
+      });
+
+      window.addEventListener("appinstalled", function () {
+        deferredPrompt = null;
+        window.fukahaPwa.canPrompt = false;
+        window.fukahaPwa.isStandalone = true;
+        notifyChanged();
+      });
+
+      try {
+        var standaloneMq = window.matchMedia("(display-mode: standalone)");
+        var onDisplayMode = function () {
+          window.fukahaPwa.isStandalone = isStandaloneDisplay();
+          notifyChanged();
+        };
+        if (typeof standaloneMq.addEventListener === "function") {
+          standaloneMq.addEventListener("change", onDisplayMode);
+        } else if (typeof standaloneMq.addListener === "function") {
+          standaloneMq.addListener(onDisplayMode);
+        }
+      } catch (_) {}
+    })();
+  </script>
+
+  <script src="/fukaha.js"></script>
+</body>
+</html>

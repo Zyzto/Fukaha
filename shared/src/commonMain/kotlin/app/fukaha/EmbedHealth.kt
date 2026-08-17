@@ -99,7 +99,11 @@ object EmbedHealthPolicy {
         return (MANUAL_REFRESH_COOLDOWN_MS - elapsed).coerceAtLeast(0L)
     }
 
-    /** Preferred if Alive/Unknown; else first Alive, then first unprobed; else preferred/default/first. */
+    /**
+     * Preferred if Alive/Unknown; else the first Alive and then the first unprobed service,
+     * searched from just after the pick and wrapping the list, or in default-then-catalogue
+     * order when there is no pick; else preferred/default/first.
+     */
     fun pickService(
         services: List<EmbedService>,
         preferred: EmbedService?,
@@ -117,10 +121,24 @@ object EmbedHealthPolicy {
             return preferred
         }
 
-        val ordered = buildList {
-            default?.let { add(it) }
-            addAll(services)
-        }.distinctBy { EmbedHealthKeys.normalize(it.normalizedHost()) }
+        // A dead pick hands over to its neighbour rather than to the catalogue default:
+        // the stand-in should sit next to the choice the user actually made. Without a
+        // pick there is no position to stay near, so the default keeps leading.
+        val anchor = preferred
+            ?.let { EmbedHealthKeys.normalize(it.normalizedHost()) }
+            ?.let { key ->
+                services.indexOfFirst { EmbedHealthKeys.normalize(it.normalizedHost()) == key }
+            }
+            ?.takeIf { it >= 0 }
+
+        val ordered = if (anchor != null) {
+            List(services.size - 1) { services[(anchor + 1 + it) % services.size] }
+        } else {
+            buildList {
+                default?.let { add(it) }
+                addAll(services)
+            }.distinctBy { EmbedHealthKeys.normalize(it.normalizedHost()) }
+        }
 
         ordered.firstOrNull { statusOf(it) == EmbedHealthStatus.Alive }?.let { return it }
         ordered.firstOrNull { statusOf(it) == EmbedHealthStatus.Unknown }?.let { return it }

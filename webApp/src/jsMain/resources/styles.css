@@ -1,0 +1,1207 @@
+/*
+ * Material 3 for the web, hand-rolled.
+ *
+ * Colour roles are the exact values from composeApp/.../theme/Color.kt, so the PWA and the
+ * Android app render the same theme. The type scale, shape scale, elevation levels and state
+ * layers follow the M3 specs. (@material/web is no longer actively developed, and a web
+ * component library would cost more bundle than these tokens do.)
+ *
+ * Layout uses logical properties throughout, so Arabic RTL needs no overrides.
+ */
+
+:root {
+  /* colour roles — light */
+  --primary: #00687a;
+  --on-primary: #ffffff;
+  --primary-container: #abedff;
+  --on-primary-container: #001f26;
+  --secondary: #4b6268;
+  --on-secondary: #ffffff;
+  --secondary-container: #cee7ee;
+  --on-secondary-container: #061f24;
+  --tertiary: #565d7e;
+  --tertiary-container: #dde1ff;
+  --on-tertiary-container: #131937;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #410002;
+  --surface: #f5fafc;
+  --on-surface: #171c1e;
+  --surface-variant: #dbe4e7;
+  --on-surface-variant: #3f484b;
+  --outline: #6f797b;
+  --outline-variant: #bfc8cb;
+  --inverse-surface: #2c3133;
+  --inverse-on-surface: #ecf1f3;
+  --inverse-primary: #84d2e7;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #eff4f6;
+  --surface-container: #e9eff1;
+  --surface-container-high: #e3e9eb;
+  --surface-container-highest: #dee3e5;
+
+  /* shape scale */
+  --shape-xs: 4px;
+  --shape-sm: 8px;
+  --shape-md: 12px;
+  --shape-lg: 16px;
+  --shape-xl: 28px;
+  --shape-full: 999px;
+
+  /* elevation */
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px 1px rgba(0, 0, 0, 0.15);
+  --elevation-2: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px 2px rgba(0, 0, 0, 0.15);
+  --elevation-3: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15);
+
+  /* state layer opacities */
+  --state-hover: 0.08;
+  --state-focus: 0.1;
+  --state-press: 0.1;
+
+  /* motion — M3 emphasised easing */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-short: 150ms;
+  --duration-medium: 250ms;
+
+  --font: "Cairo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #84d2e7;
+    --on-primary: #003641;
+    --primary-container: #004e5c;
+    --on-primary-container: #abedff;
+    --secondary: #b2cad2;
+    --on-secondary: #1c343a;
+    --secondary-container: #334a50;
+    --on-secondary-container: #cee7ee;
+    --tertiary: #bec5eb;
+    --tertiary-container: #3e4565;
+    --on-tertiary-container: #dde1ff;
+    --error: #ffb4ab;
+    --on-error: #690005;
+    --error-container: #93000a;
+    --on-error-container: #ffdad6;
+    --surface: #0f1416;
+    --on-surface: #dee3e5;
+    --surface-variant: #3f484b;
+    --on-surface-variant: #bfc8cb;
+    --outline: #899295;
+    --outline-variant: #3f484b;
+    --inverse-surface: #dee3e5;
+    --inverse-on-surface: #2c3133;
+    --inverse-primary: #00687a;
+    --surface-container-lowest: #0a0f11;
+    --surface-container-low: #171c1e;
+    --surface-container: #1b2123;
+    --surface-container-high: #252b2d;
+    --surface-container-highest: #303638;
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --primary: #84d2e7;
+  --on-primary: #003641;
+  --primary-container: #004e5c;
+  --on-primary-container: #abedff;
+  --secondary: #b2cad2;
+  --on-secondary: #1c343a;
+  --secondary-container: #334a50;
+  --on-secondary-container: #cee7ee;
+  --tertiary: #bec5eb;
+  --tertiary-container: #3e4565;
+  --on-tertiary-container: #dde1ff;
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+  --surface: #0f1416;
+  --on-surface: #dee3e5;
+  --surface-variant: #3f484b;
+  --on-surface-variant: #bfc8cb;
+  --outline: #899295;
+  --outline-variant: #3f484b;
+  --inverse-surface: #dee3e5;
+  --inverse-on-surface: #2c3133;
+  --inverse-primary: #00687a;
+  --surface-container-lowest: #0a0f11;
+  --surface-container-low: #171c1e;
+  --surface-container: #1b2123;
+  --surface-container-high: #252b2d;
+  --surface-container-highest: #303638;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Components below set an explicit `display`, which would otherwise win over the user agent's
+   rule for the hidden attribute and leave hidden elements visible. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--surface);
+  color: var(--on-surface);
+  font-family: var(--font);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- type scale ---------- */
+
+.headline-medium {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.title-large {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.title-medium {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.title-small {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.body-large {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.body-medium {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.body-small {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.label-large {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+.on-surface-variant {
+  color: var(--on-surface-variant);
+}
+
+/* ---------- icons ---------- */
+
+.icon {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  flex: none;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  user-select: none;
+}
+
+.icon-sm {
+  font-size: 18px;
+}
+
+/* Directional icons mirror in RTL; symmetrical ones must not. */
+[dir="rtl"] .icon-flip {
+  transform: scaleX(-1);
+}
+
+/* ---------- state layers ---------- */
+
+.state {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.state::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--duration-short) var(--ease-standard);
+  pointer-events: none;
+}
+
+.state:hover::after {
+  opacity: var(--state-hover);
+}
+
+.state:focus-visible::after {
+  opacity: var(--state-focus);
+}
+
+.state:active::after {
+  opacity: var(--state-press);
+}
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- boot splash ---------- */
+
+#boot-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--surface);
+  color: var(--on-surface);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.boot-title {
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 700;
+}
+
+.boot-subtitle {
+  color: var(--on-surface-variant);
+  font-size: 14px;
+}
+
+/* ---------- layout ---------- */
+
+.shell {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 16px calc(40px + env(safe-area-inset-bottom));
+}
+
+/* M3 small top app bar */
+.top-app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 64px;
+  padding-block: 8px;
+  background: var(--surface);
+}
+
+.top-app-bar-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.top-app-bar-headline {
+  min-width: 0;
+}
+
+.top-app-bar-headline .title-large {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-header {
+  color: var(--primary);
+  padding-inline: 4px;
+  padding-block-start: 8px;
+}
+
+.section-hint {
+  padding-inline: 4px;
+}
+
+.divider {
+  height: 1px;
+  border: 0;
+  margin: 4px 0;
+  background: var(--outline-variant);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- cards ---------- */
+
+.card {
+  background: var(--surface-container-low);
+  border-radius: var(--shape-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card-outlined {
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+}
+
+.card-hero {
+  background: var(--surface-container-low);
+  border-radius: var(--shape-xl);
+  padding: 20px;
+  gap: 16px;
+}
+
+.card-primary {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+
+.card-primary .on-surface-variant {
+  color: inherit;
+  opacity: 0.85;
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding-inline: 24px;
+  border: 0;
+  border-radius: var(--shape-full);
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: none;
+  transition: box-shadow var(--duration-short) var(--ease-standard);
+}
+
+.btn .icon {
+  font-size: 18px;
+  margin-inline-start: -8px;
+}
+
+.btn-filled {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.btn-filled:hover {
+  box-shadow: var(--elevation-1);
+}
+
+.btn-tonal {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.btn-outlined {
+  border: 1px solid var(--outline);
+  color: var(--primary);
+}
+
+.btn-text {
+  padding-inline: 12px;
+  color: var(--primary);
+}
+
+.btn-small {
+  min-height: 32px;
+  padding-inline: 16px;
+  font-size: 13px;
+}
+
+.btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+  box-shadow: none;
+}
+
+.btn:disabled::after {
+  opacity: 0 !important;
+}
+
+/* M3 icon button: 40px target, 24px glyph */
+.icon-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--shape-full);
+  background: transparent;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.icon-btn-tonal {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.icon-btn-filled {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+/* ---------- outlined text field ---------- */
+
+.field {
+  display: block;
+}
+
+/* Pinned LTR the way the Android field pins LocalLayoutDirection, so Arabic keeps one order:
+   link icon, then the URL, then the clear button. */
+.field-box {
+  direction: ltr;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding-inline: 12px;
+  border: 1px solid var(--outline);
+  border-radius: var(--shape-lg);
+  color: var(--on-surface-variant);
+  transition: border-color var(--duration-short) var(--ease-standard);
+}
+
+.field-box:hover {
+  border-color: var(--on-surface);
+}
+
+/* M3 thickens the outline on focus instead of adding a ring. The inline padding gives back the
+   extra pixel so the text does not shift sideways as focus lands. */
+.field-box:focus-within {
+  border: 2px solid var(--primary);
+  padding-inline: 11px;
+}
+
+.field-main {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  flex: 1;
+  min-width: 0;
+  gap: 16px;
+  cursor: text;
+}
+
+.field-input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: 0.5px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--on-surface);
+}
+
+.field-input:focus {
+  outline: none;
+}
+
+.field-input::placeholder {
+  color: var(--on-surface-variant);
+  opacity: 1;
+}
+
+.field-leading,
+.field-trailing {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+/* Matches the 4dp the Android field puts between its outline and the icon rows. */
+.field-leading {
+  padding-inline-start: 4px;
+}
+
+.field-trailing {
+  padding-inline-end: 4px;
+}
+
+/* Android sizes these at 44dp: close to the 48dp touch target, but small enough that three of
+   them still leave the URL somewhere to go on a phone-width field. */
+.field-btn {
+  width: 44px;
+  height: 44px;
+}
+
+/* Paste and clear are alternatives, so they stack in one slot rather than reserving two. */
+.field-swap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+
+.field-swap > .field-btn {
+  position: absolute;
+  inset: 0;
+}
+
+/* Hidden rather than removed, so the buttons hold their slots and the text under the caret does
+   not jump sideways when one appears on a keystroke. Also drops them from the tab order. */
+.field-btn-off {
+  visibility: hidden;
+}
+
+.field-support {
+  padding-block-start: 4px;
+  padding-inline: 16px;
+  color: var(--on-surface-variant);
+}
+
+.field-error .field-box,
+.field-error .field-box:hover,
+.field-error .field-box:focus-within {
+  border-color: var(--error);
+}
+
+.field-error .field-support {
+  color: var(--error);
+}
+
+/* M3 tints the trailing icons with the error role too; the filled go button cannot be up while
+   the link is unusable, so it keeps its own colours. */
+.field-error .field-trailing .icon-btn:not(.icon-btn-filled) {
+  color: var(--error);
+}
+
+/* ---------- list items ---------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--shape-md);
+  overflow: hidden;
+  background: var(--surface-container-low);
+}
+
+.list-item {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  text-align: start;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--on-surface);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.list-item + .list-item {
+  box-shadow: inset 0 1px 0 var(--outline-variant);
+}
+
+.list-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.list-item-trailing {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  color: var(--on-surface-variant);
+}
+
+.list-item-selected {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.list-item-selected .on-surface-variant {
+  color: inherit;
+  opacity: 0.8;
+}
+
+/* M3 radio */
+.radio {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border: 2px solid var(--on-surface-variant);
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+}
+
+.radio::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  transform: scale(0);
+  transition: transform var(--duration-short) var(--ease-standard);
+}
+
+.radio:checked {
+  border-color: var(--primary);
+}
+
+.radio:checked::before {
+  transform: scale(1);
+}
+
+/* ---------- segmented button ---------- */
+
+.segmented {
+  display: flex;
+  align-items: stretch;
+  border-radius: var(--shape-full);
+  overflow: hidden;
+}
+
+.segment {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  flex: 1;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-inline: 12px;
+  border: 1px solid var(--outline);
+  background: transparent;
+  color: var(--on-surface);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.segment + .segment {
+  border-inline-start: 0;
+}
+
+.segmented > .segment:first-child {
+  border-start-start-radius: var(--shape-full);
+  border-end-start-radius: var(--shape-full);
+}
+
+.segmented > .segment:last-child {
+  border-start-end-radius: var(--shape-full);
+  border-end-end-radius: var(--shape-full);
+}
+
+.segment-selected {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.segment .icon {
+  font-size: 18px;
+}
+
+/* ---------- share sheet ---------- */
+
+/*
+ * Mirrors composeApp/.../share/ShareSheet.kt. The page paints surface-container-low so the
+ * URL rows (surface) read the same way they do on the Android sheet.
+ */
+html:has(.shell-share),
+html:has(.shell-share) body {
+  background: var(--surface-container-low);
+}
+
+.shell-share .top-app-bar {
+  background: var(--surface-container-low);
+}
+
+.content-share {
+  padding-inline: 4px;
+  padding-block-start: 4px;
+  padding-block-end: 12px;
+}
+
+.share-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.share-head .headline-medium {
+  font-weight: 600;
+}
+
+.share-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.share-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--on-surface-variant);
+}
+
+.share-label-trailing {
+  color: var(--primary);
+}
+
+.share-row {
+  direction: ltr;
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: var(--shape-lg);
+}
+
+.share-watermark {
+  position: absolute;
+  top: 50%;
+  right: -8px;
+  transform: translateY(-50%);
+  font-size: 72px;
+  line-height: 1;
+  color: var(--primary);
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+.share-row-has-share .share-watermark {
+  right: 56px;
+}
+
+.share-row-inner {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  padding: 8px 8px 8px 4px;
+}
+
+.share-copy {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  text-align: start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--shape-md);
+  background: transparent;
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.share-copy .icon {
+  font-size: 20px;
+  color: var(--primary);
+}
+
+.share-url {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.25px;
+  overflow-wrap: anywhere;
+  direction: ltr;
+  text-align: left;
+}
+
+.share-send {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  align-self: stretch;
+  min-width: 64px;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--primary);
+  color: var(--on-primary);
+  cursor: pointer;
+}
+
+.share-send .icon {
+  font-size: 24px;
+  color: inherit;
+}
+
+.share-loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding-block: 36px;
+}
+
+.spinner {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 3px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- chips & status ---------- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding-inline: 12px;
+  border-radius: var(--shape-sm);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chip .icon {
+  font-size: 18px;
+}
+
+/* Badge-sized chip, for marking a row rather than offering an action. */
+.chip-small {
+  height: 20px;
+  padding-inline: 8px;
+  border-radius: var(--shape-xs);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chip-outline {
+  background: transparent;
+  border: 1px solid var(--outline-variant);
+  color: var(--on-surface-variant);
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 4px;
+  color: var(--on-surface-variant);
+}
+
+.note::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--outline);
+  flex: none;
+}
+
+.note-ok::before {
+  background: var(--primary);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--outline-variant);
+}
+
+.status-alive {
+  background: var(--primary);
+}
+
+.status-dead {
+  background: var(--error);
+}
+
+.status-label-dead {
+  color: var(--error);
+}
+
+/* Settings reuses the head/actions row; the share page no longer uses the tile itself. */
+
+.link-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.link-tile-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+
+.url {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 21px;
+  word-break: break-all;
+}
+
+/* ---------- disclosure ---------- */
+
+.disclosure {
+  border-radius: var(--shape-md);
+  background: var(--surface-container-low);
+  padding: 4px 16px;
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  cursor: pointer;
+  color: var(--on-surface-variant);
+  font-size: 14px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary .icon {
+  margin-inline-start: auto;
+  transition: transform var(--duration-medium) var(--ease-standard);
+}
+
+.disclosure[open] > summary .icon {
+  transform: rotate(180deg);
+}
+
+.disclosure-body {
+  padding-block-end: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--on-surface-variant);
+}
+
+.bullets {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* ---------- fixer picker ---------- */
+
+.fixer-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 8px 12px;
+}
+
+.fixer-option {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  text-align: start;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--shape-sm);
+  background: var(--surface-container);
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.fixer-option-selected {
+  border-color: var(--primary);
+  background: var(--surface-container-high);
+}
+
+.fixer-host {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--on-surface-variant);
+}
+
+/* ---------- linear progress ---------- */
+
+.progress {
+  height: 4px;
+  border-radius: var(--shape-full);
+  background: var(--surface-container-highest);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  border-radius: var(--shape-full);
+  background: var(--primary);
+  transition: width var(--duration-medium) var(--ease-standard);
+}
+
+/* ---------- snackbar ---------- */
+
+.snackbar {
+  position: fixed;
+  inset-inline: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  margin-inline: auto;
+  width: fit-content;
+  max-width: min(560px, calc(100% - 32px));
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--shape-xs);
+  background: var(--inverse-surface);
+  color: var(--inverse-on-surface);
+  box-shadow: var(--elevation-3);
+  font-size: 14px;
+  line-height: 20px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity var(--duration-medium) var(--ease-standard),
+    transform var(--duration-medium) var(--ease-standard);
+  pointer-events: none;
+  z-index: 30;
+}
+
+.snackbar-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}

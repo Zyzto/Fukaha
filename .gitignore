@@ -22,3 +22,5 @@ dist/
 *.jks
 *.keystore
 key.properties
+.firebase/
+firebase-debug.log*

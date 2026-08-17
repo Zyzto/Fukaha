@@ -22,6 +22,16 @@ class FukahaBridge(
 
     fun defaultFixer(platformKey: String): String? = catalog.defaultFixerHost(platformKey)
 
+    fun serviceForHost(platformKey: String, host: String?): EmbedService? =
+        catalog.serviceForHost(platformKey, host)
+
+    /** Fixer [embed] would really route through, so a UI can show it without guessing. */
+    fun effectiveService(
+        platformKey: String,
+        preferredFixerHost: String? = null,
+        health: Map<String, EmbedHealthStatus> = emptyMap(),
+    ): EmbedService? = catalog.effectiveService(platformKey, preferredFixerHost, health)
+
     fun platformKeys(): List<String> = catalog.platformKeys()
 
     fun servicesFor(platformKey: String): List<EmbedService> = catalog.activeServices(platformKey)

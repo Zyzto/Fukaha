@@ -24,6 +24,8 @@
 <p align="center">
   <a href="https://github.com/Zyzto/Fukaha/releases/latest"><strong>Latest release</strong></a>
   ·
+  <a href="https://fukaha.shenepoy.com"><strong>Web app</strong></a>
+  ·
   <a href="#what-you-get">What you get</a>
   ·
   <a href="#screenshots">Screenshots</a>
@@ -54,6 +56,7 @@
 | **Media file** | Optional download via your own Cobalt instance, then re-share as a file. |
 | **Settings** | Default action, per-network fixer, Cobalt URL/key, short-link resolve, EN/AR, theme, update check. |
 | **Lite** | No background sync, no accounts — network only when you share. |
+| **Web app** | The same core at [fukaha.shenepoy.com](https://fukaha.shenepoy.com) — installable, offline, and it joins the Android share sheet once installed. |
 
 **Default actions**
 
@@ -98,6 +101,14 @@
 
 Not on the App Store yet. CI builds an **unsigned Simulator app** (no Apple Developer account required). To run locally or later ship with a paid team, see [iosApp/README.md](iosApp/README.md).
 
+### Web / PWA
+
+**[fukaha.shenepoy.com](https://fukaha.shenepoy.com)** — installable, works offline, no account.
+
+Install it and Fukaha joins the system share sheet, same as the app. That part is **Chromium on Android only**: iOS has no Web Share Target at any version, so on iPhone it is Add to Home Screen plus the paste box.
+
+Embedder reachability checks work here too, run manually from Settings. CORS stops the browser reading a third-party response but not learning whether one arrived: a `no-cors` request resolves for any HTTP status and rejects only on a network-level failure, which is the same alive/dead line the Android probe draws. Short-link resolving and media download do stay app-only — following a redirect means reading a response the browser will not hand over.
+
 ---
 
 ## Develop
@@ -119,9 +130,12 @@ Open **Fukaha** for Settings / About, or share any social URL into it from anoth
 
 | Module | Role |
 |--------|------|
-| `shared` | URL clean, embed catalog, Cobalt download, settings models (Android + iOS) |
+| `shared` | URL clean, embed catalog, Cobalt download, settings models (Android + iOS + web) |
 | `composeApp` | Android UI — share sheet + Settings/About |
 | `iosApp` / `iosShareExtension` | SwiftUI Settings + Share Extension (XcodeGen + Simulator CI) |
+| `webApp` | Kotlin/JS PWA — plain DOM UI over `shared`, no Compose |
+
+**Web:** `./gradlew :webApp:jsBrowserDevelopmentRun --continuous` serves it on `localhost:8080` and rebuilds on save. The service worker only registers off localhost, so a dev server never fights a stale cache. `./gradlew :webApp:jsBrowserDistribution` writes the deployable output to `webApp/build/dist/js/productionExecutable`. Icons are committed; regenerate them from the logo with `webApp/scripts/generate-icons.sh` (needs `rsvg-convert`).
 
 **Media download:** set your own self-hosted Cobalt instance URL (and API key if required) under the collapsible Media download section in Settings (collapsed by default). There is no working public default — the public `cobalt.tools` API will not work with this app. Download options stay visible but disabled until a valid `http(s)` instance URL is configured.
 
@@ -132,6 +146,7 @@ Open **Fukaha** for Settings / About, or share any social URL into it from anoth
 - **Shared core (KMP)** — parse URL → clean → embed rewrite → optional Cobalt download  
 - **Android** — translucent `ShareActivity` + Material 3 Compose Settings  
 - **iOS** — Share Extension calling `FukahaIosFacade` + App Group settings  
+- **Web** — Kotlin/JS calling the same `FukahaBridge`, DOM UI, settings in `localStorage`  
 
 ```text
 Share menu → Fukaha → clean | embed | file → system share again
@@ -143,8 +158,9 @@ Share menu → Fukaha → clean | embed | file → system share again
 
 | Workflow | Trigger | What it does |
 |----------|---------|----------------|
-| [CI](.github/workflows/ci.yml) | push / PR to `main`, or manual | Shared unit tests, debug APK, unsigned iOS Simulator app |
+| [CI](.github/workflows/ci.yml) | push / PR to `main`, or manual | Shared unit tests, debug APK, web bundle, unsigned iOS Simulator app |
 | [Release](.github/workflows/release.yml) | tag `v*` / manual | Release APK artifact + GitHub Release |
+| [Deploy Web](.github/workflows/deploy-web.yml) | push / PR touching `webApp` or `shared`, or manual | Firebase Hosting — preview channel on PRs, live on `main` |
 
 Tag a release:
 
@@ -160,6 +176,8 @@ git push origin v0.4.4
 This repository is **public**. Never commit keystores, API keys, or `local.properties`. Use Settings in-app for Cobalt credentials.
 
 Release APKs are signed with a keystore stored only in GitHub Actions secrets (`RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`). Keep a private backup of `fukaha-release.jks` and `key.properties` — losing them means Obtainium users cannot update in place.
+
+Web deploys use `FIREBASE_SERVICE_ACCOUNT`, a service-account JSON for the `fukaha-shenepoy` Firebase project, stored the same way.
 
 ---
 

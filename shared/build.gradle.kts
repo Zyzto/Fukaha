@@ -13,6 +13,14 @@ kotlin {
         }
     }
 
+    js {
+        browser {
+            // Logic is covered by :shared:testDebugUnitTest; running the same tests in a
+            // browser would pull Karma and Chrome into every build.
+            testTask { enabled = false }
+        }
+    }
+
     listOf(
         iosX64(),
         iosArm64(),
@@ -42,6 +50,9 @@ kotlin {
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
+        }
+        jsMain.dependencies {
+            implementation(libs.ktor.client.js)
         }
     }
 }

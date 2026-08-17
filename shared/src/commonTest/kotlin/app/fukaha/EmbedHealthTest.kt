@@ -62,6 +62,127 @@ class EmbedHealthTest {
     }
 
     @Test
+    fun deadPickHandsOverToTheNextAliveService() {
+        val services = listOf(
+            service("https://alive-before.example"),
+            service("https://dead.example"),
+            service("https://alive-after.example"),
+        )
+        val health = mapOf(
+            EmbedHealthKeys.normalize(services[0].normalizedHost()) to EmbedHealthStatus.Alive,
+            EmbedHealthKeys.normalize(services[1].normalizedHost()) to EmbedHealthStatus.Dead,
+            EmbedHealthKeys.normalize(services[2].normalizedHost()) to EmbedHealthStatus.Alive,
+        )
+        val picked = EmbedHealthPolicy.pickService(
+            services = services,
+            preferred = services[1],
+            default = services[0],
+            health = health,
+        )
+        assertEquals(services[2].normalizedHost(), picked?.normalizedHost())
+    }
+
+    @Test
+    fun deadPickAtTheEndWrapsToTheFrontOfTheList() {
+        val services = listOf(
+            service("https://alive-first.example"),
+            service("https://dead-middle.example"),
+            service("https://dead-last.example"),
+        )
+        val health = mapOf(
+            EmbedHealthKeys.normalize(services[0].normalizedHost()) to EmbedHealthStatus.Alive,
+            EmbedHealthKeys.normalize(services[1].normalizedHost()) to EmbedHealthStatus.Dead,
+            EmbedHealthKeys.normalize(services[2].normalizedHost()) to EmbedHealthStatus.Dead,
+        )
+        val picked = EmbedHealthPolicy.pickService(
+            services = services,
+            preferred = services[2],
+            default = services[1],
+            health = health,
+        )
+        assertEquals(services[0].normalizedHost(), picked?.normalizedHost())
+    }
+
+    @Test
+    fun aliveEarlierInTheListBeatsAnUnknownRightAfterTheDeadPick() {
+        val services = listOf(
+            service("https://alive-first.example"),
+            service("https://dead.example"),
+            service("https://unprobed.example"),
+        )
+        val health = mapOf(
+            EmbedHealthKeys.normalize(services[0].normalizedHost()) to EmbedHealthStatus.Alive,
+            EmbedHealthKeys.normalize(services[1].normalizedHost()) to EmbedHealthStatus.Dead,
+        )
+        val picked = EmbedHealthPolicy.pickService(
+            services = services,
+            preferred = services[1],
+            default = services[2],
+            health = health,
+        )
+        assertEquals(services[0].normalizedHost(), picked?.normalizedHost())
+    }
+
+    @Test
+    fun withoutAPickTheCatalogueDefaultStillLeads() {
+        val services = listOf(
+            service("https://alive-first.example"),
+            service("https://default.example"),
+        )
+        val health = mapOf(
+            EmbedHealthKeys.normalize(services[0].normalizedHost()) to EmbedHealthStatus.Alive,
+            EmbedHealthKeys.normalize(services[1].normalizedHost()) to EmbedHealthStatus.Alive,
+        )
+        val picked = EmbedHealthPolicy.pickService(
+            services = services,
+            preferred = null,
+            default = services[1],
+            health = health,
+        )
+        assertEquals(services[1].normalizedHost(), picked?.normalizedHost())
+    }
+
+    @Test
+    fun stalePickOutsideTheListFallsBackToTheDefault() {
+        val services = listOf(
+            service("https://alive-first.example"),
+            service("https://default.example"),
+        )
+        val retired = service("https://retired.example")
+        val health = mapOf(
+            EmbedHealthKeys.normalize(retired.normalizedHost()) to EmbedHealthStatus.Dead,
+            EmbedHealthKeys.normalize(services[0].normalizedHost()) to EmbedHealthStatus.Alive,
+            EmbedHealthKeys.normalize(services[1].normalizedHost()) to EmbedHealthStatus.Alive,
+        )
+        val picked = EmbedHealthPolicy.pickService(
+            services = services,
+            preferred = retired,
+            default = services[1],
+            health = health,
+        )
+        assertEquals(services[1].normalizedHost(), picked?.normalizedHost())
+    }
+
+    @Test
+    fun everyHostDeadKeepsTheUsersOwnPick() {
+        val services = listOf(
+            service("https://dead-a.example"),
+            service("https://dead-b.example"),
+            service("https://dead-c.example"),
+        )
+        val health = services.associate {
+            EmbedHealthKeys.normalize(it.normalizedHost()) to EmbedHealthStatus.Dead
+        }
+        val picked = EmbedHealthPolicy.pickService(
+            services = services,
+            preferred = services[1],
+            default = services[0],
+            health = health,
+        )
+        assertEquals(services[1].normalizedHost(), picked?.normalizedHost())
+    }
+
+    @Test
     fun effectiveServiceReportsTheStandInForADeadPick() {
         val services = catalog.activeServices("threads")
         assertTrue(services.size >= 2)
