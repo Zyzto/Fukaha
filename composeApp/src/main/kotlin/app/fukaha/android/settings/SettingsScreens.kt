@@ -1,9 +1,11 @@
 package app.fukaha.android.settings
 
-import android.content.Context
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,19 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.CleaningServices
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -40,13 +37,11 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Science
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Icon
@@ -58,31 +53,26 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import app.fukaha.BuildConfig
 import app.fukaha.EmbedCatalog
@@ -93,17 +83,13 @@ import app.fukaha.EmbedHealthStatus
 import app.fukaha.FukahaSettings
 import app.fukaha.R
 import app.fukaha.ShareAction
-import app.fukaha.UrlCleaner
-import app.fukaha.android.ShareActivity
 import app.fukaha.android.components.SettingsSection
 import app.fukaha.android.theme.asLtrUrl
+import app.fukaha.android.theme.onSelectedBadgeGold
+import app.fukaha.android.theme.selectedBadgeGold
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.delay
-
-private const val TEST_SHARE_URL =
-    "https://x.com/makkahregion/status/1902619525532512361" +
-        "?utm_source=share&utm_medium=android_app&fbclid=IwAR0fukaha_test"
 
 /** Credited project name paired with the URL it links to. */
 private val CREDIT_SOURCES: List<Pair<Int, Int>> = listOf(
@@ -137,13 +123,13 @@ fun SettingsScreen(
     healthProgress: EmbedHealthProgress? = null,
     healthUnreachable: Boolean = false,
     onRefreshHealth: () -> Unit = {},
+    onOpenTutorial: () -> Unit = {},
+    onCheckUpdates: () -> Unit = {},
+    updateChecking: Boolean = false,
 ) {
-    val context = LocalContext.current
     val catalog = remember { EmbedCatalog.bundled() }
     var fixerPlatform by remember { mutableStateOf<String?>(null) }
     var cobaltExpanded by remember { mutableStateOf(false) }
-    // Hoisted out of the lazy item so a typed link survives scrolling it off screen.
-    var linkInput by rememberSaveable { mutableStateOf("") }
     val platforms = remember {
         catalog.platformKeys().filter { catalog.activeServices(it).isNotEmpty() }
     }
@@ -173,18 +159,14 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(padding),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 4.dp,
+            end = 16.dp,
+            bottom = 12.dp,
+        ),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        item {
-            QuickLinkSection(
-                value = linkInput,
-                onValueChange = { linkInput = it },
-                onOpen = { context.openShareScreen(it) },
-                onOpenSample = { context.openShareScreen(TEST_SHARE_URL) },
-            )
-        }
-
         item {
             SettingsSection(title = stringResource(R.string.default_action)) {
                 Text(
@@ -226,6 +208,14 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+
+        item {
+            AboutContent(
+                onOpenTutorial = onOpenTutorial,
+                onCheckUpdates = onCheckUpdates,
+                updateChecking = updateChecking,
+            )
         }
 
         item {
@@ -412,7 +402,6 @@ fun SettingsScreen(
                             (key to service.normalizedHost()),
                     ),
                 )
-                fixerPlatform = null
             },
             onDismiss = { fixerPlatform = null },
         )
@@ -531,151 +520,6 @@ private fun EmbedHealthRow(
     }
 }
 
-/**
- * Lets the user run a link through Fukaha without sharing into it from another app.
- * The pasted text is handed to [ShareActivity] exactly like a system share would,
- * forcing the sheet so every option stays visible.
- */
-@Composable
-private fun QuickLinkSection(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onOpen: (String) -> Unit,
-    onOpenSample: () -> Unit,
-) {
-    val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
-    val shareable = remember(value) { shareableLink(value) }
-    val showInvalid = value.isNotBlank() && shareable == null
-    val appDirection = LocalLayoutDirection.current
-
-    SettingsSection(title = stringResource(R.string.section_quick_use)) {
-        // The field carries a URL, so Arabic gets the same left-to-right row as English:
-        // sample and link icon, the link itself, then paste; share only after a real URL.
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                textStyle = MaterialTheme.typography.bodyLarge.asLtrUrl(),
-                placeholder = {
-                    Text(
-                        stringResource(R.string.quick_use_field_placeholder),
-                        style = MaterialTheme.typography.bodyLarge.asLtrUrl(),
-                    )
-                },
-                leadingIcon = {
-                    Row(
-                        modifier = Modifier.padding(start = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // Sample and paste only help while there is nothing to act on.
-                        if (value.isEmpty()) {
-                            QuickLinkAction(
-                                icon = Icons.Outlined.Science,
-                                label = stringResource(R.string.quick_use_sample),
-                                onClick = onOpenSample,
-                            )
-                        }
-                        Icon(Icons.Outlined.Link, contentDescription = null)
-                    }
-                },
-                trailingIcon = {
-                    Row(
-                        modifier = Modifier.padding(end = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (value.isEmpty()) {
-                            QuickLinkAction(
-                                icon = Icons.Outlined.ContentPaste,
-                                label = stringResource(R.string.quick_use_paste),
-                                onClick = {
-                                    val pasted = clipboard.getText()?.text
-                                    if (pasted.isNullOrBlank()) {
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.quick_use_clipboard_empty),
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                    } else {
-                                        onValueChange(pasted.trim())
-                                    }
-                                },
-                            )
-                        } else {
-                            QuickLinkAction(
-                                icon = Icons.Outlined.Close,
-                                label = stringResource(R.string.quick_use_clear),
-                                onClick = { onValueChange("") },
-                            )
-                        }
-                        if (shareable != null) {
-                            QuickLinkAction(
-                                icon = Icons.AutoMirrored.Outlined.ArrowForward,
-                                label = stringResource(R.string.quick_use_open),
-                                filled = true,
-                                onClick = { onOpen(shareable) },
-                            )
-                        }
-                    }
-                },
-                // Always filled so swapping in the error keeps the row at one height.
-                supportingText = {
-                    // Prose rather than a URL, so it still reads in the app's direction.
-                    CompositionLocalProvider(LocalLayoutDirection provides appDirection) {
-                        Text(
-                            text = if (showInvalid) {
-                                stringResource(R.string.quick_use_invalid)
-                            } else {
-                                stringResource(R.string.quick_use_hint)
-                            },
-                        )
-                    }
-                },
-                isError = showInvalid,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Go,
-                ),
-                keyboardActions = KeyboardActions(onGo = { shareable?.let(onOpen) }),
-                shape = MaterialTheme.shapes.medium,
-            )
-        }
-    }
-}
-
-/** In-field button, sized near the 48.dp touch target while still leaving room for two. */
-@Composable
-private fun QuickLinkAction(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-    filled: Boolean = false,
-) {
-    val content: @Composable () -> Unit = {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(24.dp))
-    }
-    if (filled) {
-        FilledIconButton(
-            onClick = onClick,
-            modifier = Modifier.size(44.dp),
-            enabled = enabled,
-            content = { content() },
-        )
-    } else {
-        IconButton(
-            onClick = onClick,
-            modifier = Modifier.size(44.dp),
-            enabled = enabled,
-            content = { content() },
-        )
-    }
-}
-
 @Composable
 internal fun DefaultActionPicker(
     settings: FukahaSettings,
@@ -704,35 +548,8 @@ internal fun DefaultActionPicker(
     }
 }
 
-private fun Context.openShareScreen(text: String) {
-    startActivity(
-        Intent(this, ShareActivity::class.java).apply {
-            action = Intent.ACTION_SEND
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, text)
-            putExtra(ShareActivity.EXTRA_FORCE_ASK, true)
-        },
-    )
-}
-
-/** Matches a scheme-less host with an optional path, e.g. `x.com/user/status/1`. */
-private val bareHostRegex = Regex("""[\w-]+(\.[\w-]+)+(/\S*)?""")
-
-/**
- * Returns text that [ShareActivity] can resolve to a link, or null when the input is
- * not usable yet. Typed input often lacks a scheme, so a bare host gets `https://`.
- */
-private fun shareableLink(raw: String): String? {
-    val trimmed = raw.trim()
-    if (trimmed.isEmpty()) return null
-    if (UrlCleaner.extractFirstUrl(trimmed) != null) return trimmed
-    val firstToken = trimmed.substringBefore(' ')
-    return if (bareHostRegex.matches(firstToken)) "https://$firstToken" else null
-}
-
 @Composable
-fun AboutScreen(
-    padding: PaddingValues,
+private fun AboutContent(
     onOpenTutorial: () -> Unit,
     onCheckUpdates: () -> Unit = {},
     updateChecking: Boolean = false,
@@ -743,141 +560,132 @@ fun AboutScreen(
     val donateUrl = stringResource(R.string.donate_url)
     val versionLabel = stringResource(R.string.version_value, BuildConfig.VERSION_NAME)
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(padding),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+    Column(
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item {
-            SettingsSection(title = stringResource(R.string.app_name)) {
-                ListItem(
-                    headlineContent = {
-                        Text(stringResource(R.string.app_name))
-                    },
-                    supportingContent = { Text(stringResource(R.string.about_body)) },
-                    leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                    colors = transparentListColors(),
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.tutorial_open)) },
-                    supportingContent = { Text(stringResource(R.string.tutorial_open_hint)) },
-                    leadingContent = {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.HelpOutline,
-                            contentDescription = null,
-                        )
-                    },
-                    modifier = Modifier.clickable(onClick = onOpenTutorial),
-                    colors = transparentListColors(),
-                )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.version)) },
-                    supportingContent = {
-                        Text(
-                            if (updateChecking) {
-                                stringResource(R.string.check_for_updates_checking)
-                            } else {
-                                versionLabel
-                            },
-                        )
-                    },
-                    leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                    trailingContent = {
-                        IconButton(
-                            onClick = onCheckUpdates,
-                            enabled = !updateChecking,
-                        ) {
-                            if (updateChecking) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(22.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Outlined.Refresh,
-                                    contentDescription = stringResource(R.string.check_for_updates),
-                                )
-                            }
+        SettingsSection(title = stringResource(R.string.app_name)) {
+            ListItem(
+                headlineContent = {
+                    Text(stringResource(R.string.app_name))
+                },
+                supportingContent = { Text(stringResource(R.string.about_body)) },
+                leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                colors = transparentListColors(),
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.tutorial_open)) },
+                supportingContent = { Text(stringResource(R.string.tutorial_open_hint)) },
+                leadingContent = {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.HelpOutline,
+                        contentDescription = null,
+                    )
+                },
+                modifier = Modifier.clickable(onClick = onOpenTutorial),
+                colors = transparentListColors(),
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.version)) },
+                supportingContent = {
+                    Text(
+                        if (updateChecking) {
+                            stringResource(R.string.check_for_updates_checking)
+                        } else {
+                            versionLabel
+                        },
+                    )
+                },
+                leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                trailingContent = {
+                    IconButton(
+                        onClick = onCheckUpdates,
+                        enabled = !updateChecking,
+                    ) {
+                        if (updateChecking) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                Icons.Outlined.Refresh,
+                                contentDescription = stringResource(R.string.check_for_updates),
+                            )
                         }
-                    },
-                    colors = transparentListColors(),
-                )
-            }
+                    }
+                },
+                colors = transparentListColors(),
+            )
         }
-        item {
-            SettingsSection(title = stringResource(R.string.developer_title)) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.developer_name)) },
-                    supportingContent = { Text(stringResource(R.string.developer_site)) },
-                    leadingContent = { Icon(Icons.Outlined.Person, contentDescription = null) },
-                    trailingContent = {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.OpenInNew,
-                            contentDescription = stringResource(R.string.developer_site),
-                        )
-                    },
-                    modifier = Modifier.clickable { uriHandler.openUri(siteUrl) },
-                    colors = transparentListColors(),
-                )
+        SettingsSection(title = stringResource(R.string.developer_title)) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.developer_name)) },
+                supportingContent = { Text(stringResource(R.string.developer_site)) },
+                leadingContent = { Icon(Icons.Outlined.Person, contentDescription = null) },
+                trailingContent = {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = stringResource(R.string.developer_site),
+                    )
+                },
+                modifier = Modifier.clickable { uriHandler.openUri(siteUrl) },
+                colors = transparentListColors(),
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.github_title)) },
+                supportingContent = { Text(stringResource(R.string.github_subtitle)) },
+                leadingContent = { Icon(Icons.Outlined.Code, contentDescription = null) },
+                trailingContent = {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = stringResource(R.string.github_title),
+                    )
+                },
+                modifier = Modifier.clickable { uriHandler.openUri(githubUrl) },
+                colors = transparentListColors(),
+            )
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.donate)) },
+                supportingContent = { Text(stringResource(R.string.donate_subtitle)) },
+                leadingContent = { Icon(Icons.Outlined.FavoriteBorder, contentDescription = null) },
+                trailingContent = {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = stringResource(R.string.donate),
+                    )
+                },
+                modifier = Modifier.clickable { uriHandler.openUri(donateUrl) },
+                colors = transparentListColors(),
+            )
+        }
+        SettingsSection(title = stringResource(R.string.credits_title)) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.credits_headline)) },
+                supportingContent = { Text(stringResource(R.string.credits)) },
+                leadingContent = { Icon(Icons.Outlined.Link, contentDescription = null) },
+                colors = transparentListColors(),
+            )
+            CREDIT_SOURCES.forEach { (labelRes, urlRes) ->
+                val label = stringResource(labelRes)
+                val url = stringResource(urlRes)
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.github_title)) },
-                    supportingContent = { Text(stringResource(R.string.github_subtitle)) },
+                    headlineContent = { Text(label) },
                     leadingContent = { Icon(Icons.Outlined.Code, contentDescription = null) },
                     trailingContent = {
                         Icon(
                             Icons.AutoMirrored.Outlined.OpenInNew,
-                            contentDescription = stringResource(R.string.github_title),
+                            contentDescription = label,
                         )
                     },
-                    modifier = Modifier.clickable { uriHandler.openUri(githubUrl) },
+                    modifier = Modifier.clickable { uriHandler.openUri(url) },
                     colors = transparentListColors(),
                 )
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.donate)) },
-                    supportingContent = { Text(stringResource(R.string.donate_subtitle)) },
-                    leadingContent = { Icon(Icons.Outlined.FavoriteBorder, contentDescription = null) },
-                    trailingContent = {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.OpenInNew,
-                            contentDescription = stringResource(R.string.donate),
-                        )
-                    },
-                    modifier = Modifier.clickable { uriHandler.openUri(donateUrl) },
-                    colors = transparentListColors(),
-                )
-            }
-        }
-        item {
-            SettingsSection(title = stringResource(R.string.credits_title)) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.credits_headline)) },
-                    supportingContent = { Text(stringResource(R.string.credits)) },
-                    leadingContent = { Icon(Icons.Outlined.Link, contentDescription = null) },
-                    colors = transparentListColors(),
-                )
-                CREDIT_SOURCES.forEach { (labelRes, urlRes) ->
-                    val label = stringResource(labelRes)
-                    val url = stringResource(urlRes)
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    ListItem(
-                        headlineContent = { Text(label) },
-                        leadingContent = { Icon(Icons.Outlined.Code, contentDescription = null) },
-                        trailingContent = {
-                            Icon(
-                                Icons.AutoMirrored.Outlined.OpenInNew,
-                                contentDescription = label,
-                            )
-                        },
-                        modifier = Modifier.clickable { uriHandler.openUri(url) },
-                        colors = transparentListColors(),
-                    )
-                }
             }
         }
     }
@@ -913,16 +721,30 @@ private fun DefaultActionOption(
         ShareAction.Embed -> Icons.Outlined.Visibility
         ShareAction.Download -> Icons.Outlined.Download
     }
-    val container = if (selected) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    val border = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.outlineVariant
-    }
+    val selectionMotion = tween<Float>(durationMillis = 180, easing = FastOutSlowInEasing)
+    val container by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "defaultActionContainer",
+    )
+    val border by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        },
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "defaultActionBorder",
+    )
+    val selectionScale by animateFloatAsState(
+        targetValue = if (selected) 1f else 0.992f,
+        animationSpec = selectionMotion,
+        label = "defaultActionScale",
+    )
     val titleColor = when {
         !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         selected -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -943,12 +765,21 @@ private fun DefaultActionOption(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.72f)
+            .graphicsLayer {
+                scaleX = selectionScale
+                scaleY = selectionScale
+            }
             .border(
                 width = if (selected) 2.dp else 1.dp,
                 color = if (enabled) border else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                 shape = MaterialTheme.shapes.medium,
             )
-            .clickable(enabled = enabled, onClick = onClick),
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                role = Role.RadioButton,
+                onClick = onClick,
+            ),
         shape = MaterialTheme.shapes.medium,
         color = container,
     ) {
@@ -960,7 +791,7 @@ private fun DefaultActionOption(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
-                imageVector = if (selected) Icons.Filled.CheckCircle else icon,
+                imageVector = icon,
                 contentDescription = null,
                 tint = iconTint,
                 modifier = Modifier.size(24.dp),
@@ -968,7 +799,9 @@ private fun DefaultActionOption(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = actionLabel(action),
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    ),
                     color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -984,13 +817,13 @@ private fun DefaultActionOption(
             }
             if (selected) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primary,
+                    color = selectedBadgeGold,
                     shape = RoundedCornerShape(999.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.fixer_selected),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                        color = onSelectedBadgeGold,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                     )
                 }
@@ -1008,7 +841,7 @@ fun HealthStatusDot(
     modifier: Modifier = Modifier,
 ) {
     val color = when (status) {
-        EmbedHealthStatus.Alive -> Color(0xFF2E7D32)
+        EmbedHealthStatus.Alive -> MaterialTheme.colorScheme.primary
         EmbedHealthStatus.Dead -> MaterialTheme.colorScheme.error
         EmbedHealthStatus.Unknown -> MaterialTheme.colorScheme.outline
     }
@@ -1032,12 +865,12 @@ fun HealthStatusChip(
     modifier: Modifier = Modifier,
 ) {
     val accent = when (status) {
-        EmbedHealthStatus.Alive -> Color(0xFF1B7A3D)
+        EmbedHealthStatus.Alive -> MaterialTheme.colorScheme.primary
         EmbedHealthStatus.Dead -> MaterialTheme.colorScheme.error
         EmbedHealthStatus.Unknown -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val container = when (status) {
-        EmbedHealthStatus.Alive -> Color(0xFF1B7A3D).copy(alpha = 0.14f)
+        EmbedHealthStatus.Alive -> MaterialTheme.colorScheme.primaryContainer
         EmbedHealthStatus.Dead -> MaterialTheme.colorScheme.error.copy(alpha = 0.14f)
         EmbedHealthStatus.Unknown -> MaterialTheme.colorScheme.surfaceContainerHighest
     }

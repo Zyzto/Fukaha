@@ -1,5 +1,6 @@
 package app.fukaha.web
 
+import app.fukaha.AppLanguage
 import app.fukaha.AppTheme
 import app.fukaha.EmbedHealthKeys
 import app.fukaha.EmbedHealthPolicy
@@ -16,13 +17,26 @@ import kotlinx.browser.document
 import kotlinx.browser.window
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.await
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.promise
 import org.w3c.dom.HTMLElement
-import org.w3c.dom.url.URLSearchParams
+import org.w3c.dom.Node
+import org.w3c.dom.events.EventListener
+import kotlin.js.Promise
+import kotlin.math.hypot
 
-enum class View { Home, Share, Settings, About }
+enum class View { Home, Share, Settings }
 
 private const val STATUS_MS = 2600
+private const val OVERLAY_EXIT_MS = 180
+private const val MENU_EXIT_MS = 120
+private const val SNACKBAR_EXIT_MS = 150
+private const val LANGUAGE_TRANSITION_MS = 420L
+internal const val LANGUAGE_MENU_ANCHOR_ID = "language-menu-anchor"
+internal const val LANGUAGE_MENU_ID = "language-menu"
+internal const val LANGUAGE_MENU_TRIGGER_ID = "language-menu-trigger"
 
 class App(private val root: HTMLElement) {
     private val scope: CoroutineScope = MainScope()
@@ -42,6 +56,8 @@ class App(private val root: HTMLElement) {
         private set
     var busy: Boolean = false
         private set
+    var homeSubmitting: Boolean = false
+        private set
 
     var health: EmbedHealthSnapshot = EmbedHealthSnapshot()
         private set
@@ -49,6 +65,8 @@ class App(private val root: HTMLElement) {
     /** Non-null while an embedder check is running. */
     var healthProgress: EmbedHealthProgress? = null
         private set
+    /** Results from the active run, shown in Settings but not used for link rewriting until valid. */
+    private val healthRunStatuses = mutableMapOf<String, EmbedHealthStatus>()
 
     /** Kept across renders so typing is not lost when the view rebuilds. */
     var draft: String = ""
@@ -57,7 +75,19 @@ class App(private val root: HTMLElement) {
     var openFixerPlatform: String? = null
         private set
 
+    var languageMenuOpen: Boolean = false
+        private set
+
     private var statusTimer: Int = 0
+    private var statusUsesIncrementalRender: Boolean = false
+    private var languageMenuPointerListener: EventListener? = null
+    private var languageMenuKeyListener: EventListener? = null
+    private val exitingElements = mutableSetOf<String>()
+    private val exitTimers = mutableMapOf<String, Int>()
+    /** Theme and locale both mutate the root snapshot, so they must share one owner. */
+    private val appearanceTransitions = AppearanceTransitionGate()
+    internal val rootElement: HTMLElement
+        get() = root
 
     fun start(sharedText: String?) {
         // Query only: Chromium needs to know we want gesture-gated clipboard-read before
@@ -79,10 +109,19 @@ class App(private val root: HTMLElement) {
     // region navigation
 
     fun show(next: View) {
+        if (view == View.Share && next != View.Share) {
+            if (exitElement(".sheet-scrim", OVERLAY_EXIT_MS) { showImmediately(next) }) return
+        }
+        showImmediately(next)
+    }
+
+    private fun showImmediately(next: View) {
         view = next
         openFixerPlatform = null
+        languageMenuOpen = false
         status = null
         render()
+        focusPageTitle()
     }
 
     /** Settings is reached from wherever the user was, so going back returns there. */
@@ -98,23 +137,100 @@ class App(private val root: HTMLElement) {
         scope.launch { consumeSharedText(text) }
     }
 
-    private suspend fun consumeSharedText(text: String) {
+    /**
+     * Handles only an explicit submission from Home. Ask keeps the existing options flow, while
+     * immediate actions stay on Home and clear the field only after the prepared URL was copied.
+     */
+    fun submitHome(text: String, submittedDraft: String) {
+        if (homeSubmitting) return
+
+        val action = settings.effectiveDefaultAction()
+        homeSubmitting = true
+        if (action == ShareAction.Ask || action == ShareAction.Download) {
+            scope.launch {
+                try {
+                    consumeSharedText(
+                        text = text,
+                        failureDraft = submittedDraft,
+                        failureMessage = strings.homePrepareFailed,
+                    )
+                } catch (_: Throwable) {
+                    busy = false
+                    view = View.Home
+                    draft = submittedDraft
+                    notify(strings.homePrepareFailed)
+                } finally {
+                    homeSubmitting = false
+                    if (view == View.Home) render()
+                }
+            }
+            return
+        }
+
+        render()
+        scope.launch {
+            val link = try {
+                bridge.prepare(text, settings, health.statuses)
+            } catch (_: Throwable) {
+                null
+            }
+            if (link == null) {
+                homeSubmitting = false
+                notify(strings.homePrepareFailed)
+                return@launch
+            }
+
+            val target = immediateHomeTarget(
+                action = action,
+                cleanedUrl = link.detected.cleanedUrl,
+                embedUrl = link.embedUrl,
+            )
+            if (target == null) {
+                homeSubmitting = false
+                render()
+                return@launch
+            }
+            val copied = Clipboard.write(target)
+            homeSubmitting = false
+            draft = draftAfterImmediateCopy(copied, draft, submittedDraft)
+            if (copied) {
+                notify(
+                    if (action == ShareAction.Clean) {
+                        strings.cleanLinkCopied
+                    } else {
+                        strings.embedLinkCopied
+                    },
+                )
+            } else {
+                notify(strings.homeCopyFailed)
+            }
+        }
+    }
+
+    private suspend fun consumeSharedText(
+        text: String,
+        failureDraft: String? = null,
+        failureMessage: String? = null,
+    ) {
         busy = true
         view = View.Share
         render()
+        focusPageTitle()
 
         val result = bridge.prepare(text, settings, health.statuses)
         busy = false
         if (result == null) {
             prepared = null
             view = View.Home
-            draft = text.trim()
-            notify(strings.noLink)
+            draft = failureDraft ?: text.trim()
+            notify(failureMessage ?: strings.noLink)
+            focusPageTitle()
             return
         }
 
         prepared = result
         render()
+        focusPageTitle()
         runDefaultAction(result)
     }
 
@@ -205,18 +321,309 @@ class App(private val root: HTMLElement) {
     // region settings
 
     fun toggleFixerPicker(platformKey: String?) {
-        openFixerPlatform = if (openFixerPlatform == platformKey) null else platformKey
+        val closing = openFixerPlatform != null &&
+            (platformKey == null || openFixerPlatform == platformKey)
+        if (closing) {
+            if (exitElement(".picker-scrim", OVERLAY_EXIT_MS) {
+                    openFixerPlatform = null
+                    render()
+                }
+            ) {
+                return
+            }
+        }
+        openFixerPlatform = platformKey
+        render()
+        if (openFixerPlatform != null) {
+            (document.getElementById("fixer-picker-title") as? HTMLElement)?.focus()
+        }
+    }
+
+    fun toggleLanguageMenu() {
+        if (appearanceTransitions.isActive) return
+        languageMenuOpen = !languageMenuOpen
         render()
     }
 
-    fun updateSettings(transform: (FukahaSettings) -> FukahaSettings) {
-        scope.launch {
-            store.update(transform)
-            settings = store.get()
-            applyLocaleAndTheme()
-            recomputePrepared()
-            render()
+    private fun dismissLanguageMenu(
+        returnFocus: Boolean = false,
+        afterDismiss: (() -> Unit)? = null,
+    ) {
+        if (!languageMenuOpen) {
+            afterDismiss?.invoke()
+            return
         }
+        languageMenuOpen = false
+        removeLanguageMenuListeners()
+        (document.getElementById(LANGUAGE_MENU_TRIGGER_ID) as? HTMLElement)?.let { trigger ->
+            trigger.setAttribute("aria-expanded", "false")
+            if (returnFocus) trigger.focus()
+        }
+        if (!exitElement("#$LANGUAGE_MENU_ID", MENU_EXIT_MS) {
+                document.getElementById(LANGUAGE_MENU_ID)?.remove()
+                afterDismiss?.invoke()
+            }
+        ) {
+            afterDismiss?.invoke()
+        }
+    }
+
+    private fun installLanguageMenuListeners() {
+        if (!languageMenuOpen) return
+        val anchor = document.getElementById(LANGUAGE_MENU_ANCHOR_ID) ?: return
+
+        languageMenuPointerListener = EventListener { event ->
+            val target = event.target as? Node
+            if (target == null || !anchor.contains(target)) dismissLanguageMenu()
+        }.also { document.addEventListener("pointerdown", it, true) }
+
+        languageMenuKeyListener = EventListener { event ->
+            if (event.asDynamic().key == "Escape") {
+                event.preventDefault()
+                dismissLanguageMenu(returnFocus = true)
+            }
+        }.also { document.addEventListener("keydown", it, true) }
+    }
+
+    private fun removeLanguageMenuListeners() {
+        languageMenuPointerListener?.let {
+            document.removeEventListener("pointerdown", it, true)
+        }
+        languageMenuKeyListener?.let {
+            document.removeEventListener("keydown", it, true)
+        }
+        languageMenuPointerListener = null
+        languageMenuKeyListener = null
+    }
+
+    fun selectLanguage(language: AppLanguage) {
+        if (appearanceTransitions.isActive) return
+        if (settings.language != language && !appearanceTransitions.acquire()) return
+        dismissLanguageMenu {
+            if (settings.language == language) {
+                (document.getElementById(LANGUAGE_MENU_TRIGGER_ID) as? HTMLElement)?.focus()
+            } else {
+                changeLanguage(language)
+            }
+        }
+    }
+
+    fun cycleTheme(origin: HTMLElement) {
+        if (!appearanceTransitions.acquire()) return
+
+        val reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        val page = document.documentElement as? HTMLElement
+        if (reduceMotion || page == null) {
+            scope.launch {
+                try {
+                    applyThemeCycle()
+                } finally {
+                    appearanceTransitions.release()
+                }
+            }
+            return
+        }
+
+        val bounds = origin.getBoundingClientRect()
+        val centerX = bounds.left + bounds.width / 2.0
+        val centerY = bounds.top + bounds.height / 2.0
+        val radius = hypot(
+            maxOf(centerX, window.innerWidth - centerX),
+            maxOf(centerY, window.innerHeight - centerY),
+        )
+        val canViewTransition =
+            jsTypeOf(document.asDynamic().startViewTransition) == "function"
+
+        if (canViewTransition) {
+            page.style.setProperty("--theme-origin-x", "${centerX}px")
+            page.style.setProperty("--theme-origin-y", "${centerY}px")
+            page.style.setProperty("--theme-reveal-radius", "${radius}px")
+            page.classList.add("theme-view-transition")
+
+            val transition: dynamic = runCatching {
+                document.asDynamic().startViewTransition {
+                    scope.promise { applyThemeCycle() }
+                }
+            }.getOrNull()
+            if (transition != null) {
+                scope.launch {
+                    runCatching { (transition.finished as Promise<*>).await() }
+                    clearThemeTransition(page)
+                }
+                return
+            }
+            clearThemeTransition(page, release = false)
+        }
+
+        // Safari and other unsupported browsers crossfade a frozen, inert copy of the old UI.
+        // Its inherited colour tokens are pinned before the live document changes, avoiding the
+        // full-page variable swap that looked like a flash.
+        origin.classList.add("theme-triggering")
+        val snapshot = createThemeFallbackSnapshot(page)
+        scope.launch {
+            try {
+                delay(120)
+                applyThemeCycle()
+                delay(500)
+            } finally {
+                snapshot?.remove()
+                origin.classList.remove("theme-triggering")
+                appearanceTransitions.release()
+            }
+        }
+    }
+
+    private fun createThemeFallbackSnapshot(page: HTMLElement): HTMLElement? {
+        val body = document.body ?: return null
+        val snapshot = document.createElement("div") as HTMLElement
+        snapshot.className = "theme-fallback-snapshot"
+        snapshot.setAttribute("aria-hidden", "true")
+        snapshot.asDynamic().inert = true
+
+        // One computed-style read captures every custom token; descendants inherit the frozen
+        // values without walking the cloned tree or forcing repeated layout.
+        val computed = window.getComputedStyle(page)
+        snapshot.style.setProperty("color-scheme", computed.getPropertyValue("color-scheme"))
+        for (index in 0 until computed.length) {
+            val property = computed.item(index)
+            if (property.startsWith("--")) {
+                snapshot.style.setProperty(property, computed.getPropertyValue(property))
+            }
+        }
+
+        val content = root.cloneNode(deep = true) as HTMLElement
+        content.removeAttribute("id")
+        content.classList.add("theme-fallback-snapshot-content")
+        snapshot.appendChild(content)
+        body.appendChild(snapshot)
+        snapshot.scrollTop = window.scrollY
+        return snapshot
+    }
+
+    private suspend fun applyThemeCycle() {
+        applySettingsUpdate { current ->
+            current.copy(
+                theme = when (current.theme) {
+                    AppTheme.System -> AppTheme.Light
+                    AppTheme.Light -> AppTheme.Dark
+                    AppTheme.Dark -> AppTheme.System
+                },
+            )
+        }
+    }
+
+    private fun clearThemeTransition(page: HTMLElement, release: Boolean = true) {
+        page.classList.remove("theme-view-transition")
+        page.style.removeProperty("--theme-origin-x")
+        page.style.removeProperty("--theme-origin-y")
+        page.style.removeProperty("--theme-reveal-radius")
+        document.querySelector(".theme-fallback-snapshot")?.let {
+            it.parentNode?.removeChild(it)
+        }
+        if (release) appearanceTransitions.release()
+    }
+
+    private fun changeLanguage(language: AppLanguage) {
+        val reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        val page = document.documentElement as? HTMLElement
+        val trigger = document.getElementById(LANGUAGE_MENU_TRIGGER_ID) as? HTMLElement
+        if (reduceMotion || page == null) {
+            scope.launch {
+                try {
+                    applyLanguage(language)
+                } finally {
+                    appearanceTransitions.release()
+                }
+            }
+            return
+        }
+
+        val bounds = trigger?.getBoundingClientRect()
+        val originX = bounds?.let { it.left + it.width / 2.0 } ?: window.innerWidth / 2.0
+        val originY = bounds?.let { it.top + it.height / 2.0 } ?: 48.0
+        page.style.setProperty("--language-origin-x", "${originX}px")
+        page.style.setProperty("--language-origin-y", "${originY}px")
+        page.classList.add("language-view-transition")
+
+        val canViewTransition =
+            jsTypeOf(document.asDynamic().startViewTransition) == "function"
+        if (canViewTransition) {
+            val transition: dynamic = runCatching {
+                document.asDynamic().startViewTransition {
+                    scope.promise { applyLanguage(language) }
+                }
+            }.getOrNull()
+            if (transition != null) {
+                scope.launch {
+                    runCatching { (transition.finished as Promise<*>).await() }
+                    clearLanguageTransition(page)
+                }
+                return
+            }
+        }
+
+        page.classList.remove("language-view-transition")
+        val snapshot = createLanguageFallbackSnapshot(page)
+        scope.launch {
+            try {
+                applyLanguage(language)
+                delay(LANGUAGE_TRANSITION_MS)
+            } finally {
+                snapshot?.remove()
+                clearLanguageTransition(page)
+            }
+        }
+    }
+
+    private fun createLanguageFallbackSnapshot(page: HTMLElement): HTMLElement? {
+        val body = document.body ?: return null
+        val snapshot = document.createElement("div") as HTMLElement
+        snapshot.className = "language-fallback-snapshot"
+        snapshot.setAttribute("aria-hidden", "true")
+        snapshot.setAttribute("dir", page.getAttribute("dir") ?: "ltr")
+        snapshot.asDynamic().inert = true
+
+        val content = root.cloneNode(deep = true) as HTMLElement
+        content.removeAttribute("id")
+        content.classList.add("language-fallback-snapshot-content")
+        snapshot.appendChild(content)
+        body.appendChild(snapshot)
+        snapshot.scrollTop = window.scrollY
+        return snapshot
+    }
+
+    private suspend fun applyLanguage(language: AppLanguage) {
+        // A single store transaction is the only persistence point for this selection.
+        applySettingsUpdate { current -> current.copy(language = language) }
+        (document.getElementById(LANGUAGE_MENU_TRIGGER_ID) as? HTMLElement)?.focus()
+    }
+
+    private fun clearLanguageTransition(page: HTMLElement) {
+        page.classList.remove("language-view-transition")
+        page.style.removeProperty("--language-origin-x")
+        page.style.removeProperty("--language-origin-y")
+        document.querySelector(".language-fallback-snapshot")?.let {
+            it.parentNode?.removeChild(it)
+        }
+        appearanceTransitions.release()
+    }
+
+    fun updateSettings(
+        afterRender: (() -> Unit)? = null,
+        transform: (FukahaSettings) -> FukahaSettings,
+    ) {
+        scope.launch {
+            applySettingsUpdate(transform)
+            afterRender?.invoke()
+        }
+    }
+
+    private suspend fun applySettingsUpdate(transform: (FukahaSettings) -> FukahaSettings) {
+        store.update(transform)
+        settings = store.get()
+        applyLocaleAndTheme()
+        recomputePrepared()
+        render()
     }
 
     // endregion
@@ -240,34 +647,59 @@ class App(private val root: HTMLElement) {
 
         scope.launch {
             val hosts = uniqueFixerHosts()
-            healthProgress = EmbedHealthProgress(
-                currentHost = hosts.firstOrNull().orEmpty(),
-                currentIndex = 0,
-                total = hosts.size,
+            healthRunStatuses.clear()
+            updateHealthProgress(
+                EmbedHealthProgress(
+                    currentHost = hosts.firstOrNull().orEmpty(),
+                    currentIndex = 0,
+                    total = hosts.size,
+                ),
             )
-            render()
 
-            val results = WebEmbedHealth.refresh(hosts) { progress ->
-                healthProgress = progress
-                render()
+            val results = runCatching {
+                WebEmbedHealth.refresh(hosts) { progress, result ->
+                    updateHealthProgress(progress, result)
+                }
+            }.getOrElse {
+                healthProgress = null
+                healthRunStatuses.clear()
+                updateEmbedHealthUi(this@App)
+                notify(strings.embedHealthOffline, incrementally = true)
+                return@launch
             }
             healthProgress = null
 
             // Everything failing means the browser is offline, not that the embedders died.
             if (!EmbedHealthPolicy.isUsableResult(results)) {
-                notify(strings.embedHealthOffline)
+                healthRunStatuses.clear()
+                updateEmbedHealthUi(this@App)
+                notify(strings.embedHealthOffline, incrementally = true)
                 return@launch
             }
 
             val now = PlatformClock.epochMillis()
             healthStore.save(results, now)
             health = EmbedHealthSnapshot(results, now)
+            healthRunStatuses.clear()
             recomputePrepared()
-            notify(strings.embedHealthCounts(health.aliveCount, health.deadCount))
+            if (!updateEmbedHealthUi(this@App) && view != View.Settings) render()
+            notify(strings.embedHealthCounts(health.aliveCount, health.deadCount), incrementally = true)
         }
     }
 
-    fun statusOf(host: String): EmbedHealthStatus = health.statusOf(host)
+    internal fun updateHealthProgress(
+        progress: EmbedHealthProgress,
+        completedStatus: EmbedHealthStatus? = null,
+    ) {
+        healthProgress = progress
+        if (completedStatus != null) {
+            healthRunStatuses[EmbedHealthKeys.normalize(progress.currentHost)] = completedStatus
+        }
+        updateEmbedHealthUi(this)
+    }
+
+    fun statusOf(host: String): EmbedHealthStatus =
+        healthRunStatuses[EmbedHealthKeys.normalize(host)] ?: health.statusOf(host)
 
     private fun uniqueFixerHosts(): List<String> =
         bridge.platformKeys()
@@ -288,21 +720,71 @@ class App(private val root: HTMLElement) {
     }
 
     /** Shows a transient message in the live region, replacing any message still on screen. */
-    fun notify(message: String) {
+    fun notify(message: String, incrementally: Boolean = false) {
         window.clearTimeout(statusTimer)
+        cancelExit(".snackbar-visible")
         status = message
-        render()
-        statusTimer = window.setTimeout({
+        statusUsesIncrementalRender = incrementally
+        if (incrementally) updateSnackbar() else render()
+        statusTimer = window.setTimeout({ dismissStatus() }, STATUS_MS)
+    }
+
+    private fun dismissStatus() {
+        if (status == null) return
+        if (!exitElement(".snackbar-visible", SNACKBAR_EXIT_MS) {
+                status = null
+                if (statusUsesIncrementalRender) updateSnackbar() else render()
+            }
+        ) {
             status = null
-            render()
-        }, STATUS_MS)
+            if (statusUsesIncrementalRender) updateSnackbar() else render()
+        }
+    }
+
+    /** Health completion owns no page state outside its region and this persistent live region. */
+    private fun updateSnackbar() {
+        val snackbar = root.querySelector(".snackbar") as? HTMLElement ?: return
+        snackbar.className = if (status != null) "snackbar snackbar-visible" else "snackbar"
+        snackbar.textContent = status.orEmpty()
+    }
+
+    /**
+     * Keeps transient UI mounted just long enough to paint its exit. Reduced-motion users
+     * complete synchronously, and the set prevents repeated taps/Escape from queuing callbacks.
+     */
+    private fun exitElement(
+        selector: String,
+        durationMs: Int,
+        onFinished: () -> Unit,
+    ): Boolean {
+        val element = document.querySelector(selector) as? HTMLElement ?: return false
+        if (!exitingElements.add(selector)) return true
+        element.classList.add("motion-exit")
+        val finish = {
+            exitingElements.remove(selector)
+            exitTimers.remove(selector)
+            onFinished()
+        }
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            finish()
+        } else {
+            exitTimers[selector] = window.setTimeout(finish, durationMs)
+        }
+        return true
+    }
+
+    private fun cancelExit(selector: String) {
+        exitTimers.remove(selector)?.let { window.clearTimeout(it) }
+        exitingElements.remove(selector)
     }
 
     private fun applyLocaleAndTheme() {
         strings = Strings.forLanguage(settings.language)
-        val arabic = Strings.isArabic(settings.language)
-        document.documentElement?.setAttribute("lang", if (arabic) "ar" else "en")
-        document.documentElement?.setAttribute("dir", if (arabic) "rtl" else "ltr")
+        document.documentElement?.setAttribute("lang", Strings.languageTag(settings.language))
+        document.documentElement?.setAttribute(
+            "dir",
+            if (Strings.isArabic(settings.language)) "rtl" else "ltr",
+        )
         when (settings.theme) {
             AppTheme.System -> document.documentElement?.removeAttribute("data-theme")
             AppTheme.Light -> document.documentElement?.setAttribute("data-theme", "light")
@@ -312,9 +794,16 @@ class App(private val root: HTMLElement) {
     }
 
     fun render() {
+        removeLanguageMenuListeners()
         root.clear()
         renderApp(this, root)
+        installLanguageMenuListeners()
         document.getElementById("boot-splash")?.remove()
+    }
+
+    /** Programmatic views behave like pages: announce their title without adding a tab stop. */
+    private fun focusPageTitle() {
+        (document.getElementById("page-title") as? HTMLElement)?.focus()
     }
 
     fun catalogPlatformKeys(): List<String> = bridge.platformKeys()
@@ -338,25 +827,29 @@ class App(private val root: HTMLElement) {
 
 fun main() {
     val root = document.getElementById("app") as? HTMLElement ?: return
+    val startup = readStartupNavigation()
     registerServiceWorker()
-    App(root).start(readSharedText())
+    App(root).start(startup.sharedText)
 }
 
 /**
  * Web Share Target hands us the link in `url`, `text`, or `title` depending on the sending
  * app — Chrome on Android usually uses `text` for a shared page, not `url`. Everything is
  * concatenated and left to `UrlCleaner.extractFirstUrl`, which already digs a URL out of
- * surrounding prose.
+ * surrounding prose. The values are captured before replacing an arbitrary document pathname,
+ * and only consumed share fields are removed from the canonical root URL.
  */
-private fun readSharedText(): String? {
-    val params = URLSearchParams(window.location.search)
-    val combined = listOfNotNull(params.get("url"), params.get("text"), params.get("title"))
-        .filter { it.isNotBlank() }
-        .joinToString(" ")
-    if (combined.isBlank()) return null
-    // Drop the shared link from the address bar so a refresh does not reprocess it.
-    window.history.replaceState(null, "", window.location.pathname)
-    return combined
+private fun readStartupNavigation(): StartupNavigation {
+    val startup = resolveStartupNavigation(
+        pathname = window.location.pathname,
+        search = window.location.search,
+        hash = window.location.hash,
+    )
+    if (startup.shouldReplace) {
+        // Replacing (rather than pushing) keeps Back pointed at the page that launched Fukaha.
+        window.history.replaceState(null, "", startup.canonicalUrl)
+    }
+    return startup
 }
 
 private fun registerServiceWorker() {

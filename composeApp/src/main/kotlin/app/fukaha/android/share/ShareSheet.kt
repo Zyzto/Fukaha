@@ -1,7 +1,14 @@
 package app.fukaha.android.share
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
@@ -27,6 +35,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +43,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -42,6 +52,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,10 +65,12 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import app.fukaha.EmbedHealthStatus
 import app.fukaha.PreparedLink
 import app.fukaha.R
 import app.fukaha.android.theme.asLtrUrl
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,39 +89,81 @@ fun ShareSheet(
     onCopyEmbed: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var dismissing by remember { mutableStateOf(false) }
+    val dialogProgress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        dialogProgress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+        )
+    }
+    val dismissSheet = {
+        if (!dismissing) {
+            dismissing = true
+            val sheetWasVisible = sheetState.isVisible
+            scope.launch {
+                sheetState.hide()
+                if (!sheetWasVisible) {
+                    dialogProgress.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(
+                            durationMillis = 140,
+                            easing = FastOutSlowInEasing,
+                        ),
+                    )
+                }
+                onDismiss()
+            }
+        }
+        Unit
+    }
     val colors = MaterialTheme.colorScheme
+    BackHandler(onBack = dismissSheet)
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-    ) {
+    val content: @Composable (Modifier) -> Unit = { contentModifier ->
         Column(
-            modifier = Modifier
+            modifier = contentModifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .padding(top = 4.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = colors.onSurface,
-                )
-                Text(
-                    text = stringResource(
-                        if (mediaDownloadEnabled) {
-                            R.string.share_sheet_subtitle
-                        } else {
-                            R.string.share_sheet_subtitle_no_media
-                        },
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.onSurfaceVariant,
-                )
+            Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                IconButton(
+                    onClick = dismissSheet,
+                    modifier = Modifier.offset(y = (-4).dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(R.string.back),
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = colors.onSurface,
+                    )
+                    Text(
+                        text = stringResource(
+                            if (mediaDownloadEnabled) {
+                                R.string.share_sheet_subtitle
+                            } else {
+                                R.string.share_sheet_subtitle_no_media
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.onSurfaceVariant,
+                    )
+                }
             }
 
             when {
@@ -139,7 +199,7 @@ fun ShareSheet(
                             style = MaterialTheme.typography.bodyLarge,
                         )
                     }
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = dismissSheet) {
                         Text(stringResource(android.R.string.ok))
                     }
                 }
@@ -207,6 +267,40 @@ fun ShareSheet(
             }
         }
     }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        if (maxWidth < 600.dp) {
+            ModalBottomSheet(
+                onDismissRequest = dismissSheet,
+                sheetState = sheetState,
+                containerColor = colors.surfaceContainerLow,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                content = { content(Modifier) },
+            )
+        } else {
+            Dialog(onDismissRequest = dismissSheet) {
+                Surface(
+                    modifier = Modifier
+                        .widthIn(max = 520.dp)
+                        .heightIn(max = maxHeight * 0.9f)
+                        .graphicsLayer {
+                            alpha = dialogProgress.value
+                            scaleX = 0.985f + (0.015f * dialogProgress.value)
+                            scaleY = 0.985f + (0.015f * dialogProgress.value)
+                        },
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = colors.surfaceContainerLow,
+                    shadowElevation = 6.dp,
+                ) {
+                    content(
+                        Modifier
+                            .verticalScroll(rememberScrollState())
+                            .padding(top = 16.dp),
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -269,7 +363,7 @@ private fun LinkActionRow(
     val colors = MaterialTheme.colorScheme
     val shareShape = RoundedCornerShape(14.dp)
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionLabel(text = title, icon = sectionIcon, trailing = titleTrailing)
 
         // Keep share on the physical right in both LTR and RTL locales.
@@ -298,8 +392,9 @@ private fun LinkActionRow(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(IntrinsicSize.Min)
-                            .padding(start = 4.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                            .padding(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Row(
                             modifier = Modifier
@@ -307,7 +402,7 @@ private fun LinkActionRow(
                                 .fillMaxHeight()
                                 .clip(MaterialTheme.shapes.medium)
                                 .clickable(onClick = onCopy)
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {

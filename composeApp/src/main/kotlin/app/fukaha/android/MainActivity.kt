@@ -6,18 +6,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -29,15 +37,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import app.fukaha.AppRelease
 import app.fukaha.AppUpdateChecker
 import app.fukaha.AppUpdatePolicy
@@ -50,7 +65,6 @@ import app.fukaha.UpdateCheckResult
 import app.fukaha.android.components.LanguageMenuButton
 import app.fukaha.android.components.ThemeCycleButton
 import app.fukaha.android.onboarding.TutorialScreen
-import app.fukaha.android.settings.AboutScreen
 import app.fukaha.android.settings.SettingsScreen
 import app.fukaha.android.settings.UpdateAvailableDialog
 import app.fukaha.android.theme.FukahaTheme
@@ -61,6 +75,7 @@ import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -70,14 +85,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val app = application.fukaha()
+        val animatorDurationScale = runCatching {
+            android.provider.Settings.Global.getFloat(
+                contentResolver,
+                android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f,
+            )
+        }.getOrDefault(1f)
 
         setContent {
             var settings by remember { mutableStateOf(FukahaSettings()) }
             var settingsLoaded by remember { mutableStateOf(false) }
             var tutorialOpen by remember { mutableStateOf(false) }
-            var tab by remember { mutableIntStateOf(0) }
             var pendingRelease by remember { mutableStateOf<AppRelease?>(null) }
             var updateChecking by remember { mutableStateOf(false) }
+            var languageChangeInFlight by remember { mutableStateOf(false) }
             var apkUpdateState by remember { mutableStateOf<ApkUpdateUiState>(ApkUpdateUiState.Idle) }
             var apkUpdateJob by remember { mutableStateOf<Job?>(null) }
             val scope = rememberCoroutineScope()
@@ -148,13 +170,24 @@ class MainActivity : AppCompatActivity() {
 
             fun persist(next: FukahaSettings) {
                 val languageChanged = next.language != settings.language
+                if (languageChanged && languageChangeInFlight) return
+                if (languageChanged) languageChangeInFlight = true
                 settings = next
                 scope.launch {
                     app.settingsStore.update { next }
                     if (languageChanged) {
+                        // Let the old content begin fading before AppCompat performs its usual
+                        // locale recreation. A zero system animation scale skips this entirely.
+                        if (animatorDurationScale > 0f) {
+                            delay((140f * animatorDurationScale.coerceAtMost(2f)).toLong())
+                        }
                         withContext(Dispatchers.Main.immediate) {
                             LocaleHelper.apply(next.language)
                         }
+                        // Usually locale application recreates the activity. This also releases
+                        // the guard on implementations that update resources in place.
+                        delay(450)
+                        languageChangeInFlight = false
                     }
                 }
             }
@@ -239,12 +272,7 @@ class MainActivity : AppCompatActivity() {
                         containerColor = MaterialTheme.colorScheme.surface,
                         topBar = {
                             TopAppBar(
-                                title = {
-                                    Text(
-                                        if (tab == 0) stringResource(R.string.settings)
-                                        else stringResource(R.string.about),
-                                    )
-                                },
+                                title = { FukahaBrandTitle() },
                                 actions = {
                                     IconButton(onClick = { tutorialOpen = true }) {
                                         Icon(
@@ -265,51 +293,46 @@ class MainActivity : AppCompatActivity() {
                                 colors = barColors,
                             )
                         },
-                        bottomBar = {
-                            NavigationBar(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            ) {
-                                NavigationBarItem(
-                                    selected = tab == 0,
-                                    onClick = { tab = 0 },
-                                    icon = {
-                                        Icon(Icons.Outlined.Settings, contentDescription = null)
-                                    },
-                                    label = { Text(stringResource(R.string.settings)) },
-                                )
-                                NavigationBarItem(
-                                    selected = tab == 1,
-                                    onClick = { tab = 1 },
-                                    icon = {
-                                        Icon(Icons.Outlined.Info, contentDescription = null)
-                                    },
-                                    label = { Text(stringResource(R.string.about)) },
-                                )
-                            }
-                        },
                         snackbarHost = { SnackbarHost(snackbar) },
                     ) { padding ->
-                        when (tab) {
-                            0 -> SettingsTab(
-                                controller = app.healthController,
-                                padding = padding,
-                                settings = settings,
-                                onChange = { persist(it) },
-                                onClearCache = {
-                                    File(cacheDir, "fukaha").listFiles()?.forEach { it.delete() }
-                                    scope.launch {
-                                        snackbar.showSnackbar(getString(R.string.cache_cleared))
-                                    }
-                                },
-                            )
-                            else -> AboutScreen(
-                                padding = padding,
-                                onOpenTutorial = { tutorialOpen = true },
-                                onCheckUpdates = {
-                                    scope.launch { runUpdateCheck(manual = true) }
-                                },
-                                updateChecking = updateChecking,
-                            )
+                        AnimatedContent(
+                            targetState = LocaleHelper.resolve(settings.language),
+                            transitionSpec = {
+                                (
+                                    fadeIn(tween(260, easing = FastOutSlowInEasing)) +
+                                        slideInHorizontally(
+                                            animationSpec = tween(360, easing = FastOutSlowInEasing),
+                                            initialOffsetX = { it / 24 },
+                                        )
+                                    ).togetherWith(
+                                    fadeOut(tween(180, easing = FastOutSlowInEasing)) +
+                                        slideOutHorizontally(
+                                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                            targetOffsetX = { -it / 32 },
+                                        ),
+                                )
+                            },
+                            label = "localeContent",
+                        ) { resolvedLanguage ->
+                            key(resolvedLanguage) {
+                                SettingsTab(
+                                    controller = app.healthController,
+                                    padding = padding,
+                                    settings = settings,
+                                    onChange = { persist(it) },
+                                    onClearCache = {
+                                        File(cacheDir, "fukaha").listFiles()?.forEach { it.delete() }
+                                        scope.launch {
+                                            snackbar.showSnackbar(getString(R.string.cache_cleared))
+                                        }
+                                    },
+                                    onOpenTutorial = { tutorialOpen = true },
+                                    onCheckUpdates = {
+                                        scope.launch { runUpdateCheck(manual = true) }
+                                    },
+                                    updateChecking = updateChecking,
+                                )
+                            }
                         }
                     }
                     pendingRelease?.let { release ->
@@ -340,6 +363,49 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
+@Composable
+private fun FukahaBrandTitle() {
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val compactLayout = screenWidthDp <= 380
+    val wideLayout = screenWidthDp > 520
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(
+            when {
+                wideLayout -> 12.dp
+                compactLayout -> 8.dp
+                else -> 10.dp
+            },
+        ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_fukaha_brand),
+            contentDescription = null,
+            tint = Color.Unspecified,
+            modifier = Modifier.size(
+                when {
+                    wideLayout -> 48.dp
+                    compactLayout -> 40.dp
+                    else -> 44.dp
+                },
+            ),
+        )
+        Text(
+            text = stringResource(R.string.app_name),
+            modifier = Modifier.weight(1f),
+            style = when {
+                wideLayout -> MaterialTheme.typography.displaySmall
+                compactLayout -> MaterialTheme.typography.headlineSmall
+                else -> MaterialTheme.typography.headlineMedium
+            },
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 /**
  * Owns the embedder-health state so a probe run, which reports progress every few
  * hundred milliseconds, only recomposes the settings list and not the app shell.
@@ -351,6 +417,9 @@ private fun SettingsTab(
     settings: FukahaSettings,
     onChange: (FukahaSettings) -> Unit,
     onClearCache: () -> Unit,
+    onOpenTutorial: () -> Unit,
+    onCheckUpdates: () -> Unit,
+    updateChecking: Boolean,
 ) {
     val health by controller.observeSnapshot().collectAsState(initial = EmbedHealthSnapshot())
     val checking by controller.inProgress.collectAsState()
@@ -367,5 +436,8 @@ private fun SettingsTab(
         healthProgress = progress,
         healthUnreachable = unreachable,
         onRefreshHealth = controller::refresh,
+        onOpenTutorial = onOpenTutorial,
+        onCheckUpdates = onCheckUpdates,
+        updateChecking = updateChecking,
     )
 }

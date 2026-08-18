@@ -47,7 +47,7 @@ object WebEmbedHealth {
      */
     suspend fun refresh(
         hosts: List<String>,
-        onProgress: (EmbedHealthProgress) -> Unit,
+        onProgress: (EmbedHealthProgress, EmbedHealthStatus) -> Unit,
     ): Map<String, EmbedHealthStatus> = coroutineScope {
         val results = LinkedHashMap<String, EmbedHealthStatus>(hosts.size)
         var alive = 0
@@ -74,6 +74,7 @@ object WebEmbedHealth {
                             aliveCount = alive,
                             deadCount = dead,
                         ),
+                        status,
                     )
                 }
             }

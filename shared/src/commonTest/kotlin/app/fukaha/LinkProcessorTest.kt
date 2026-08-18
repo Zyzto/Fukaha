@@ -10,6 +10,24 @@ class LinkProcessorTest {
     private val catalog = EmbedCatalog.bundled()
 
     @Test
+    fun preparedLinkSelectsCleanAndEmbedUrlsWithSafeFallback() {
+        val detected = DetectedLink(
+            originalUrl = "https://x.com/user/status/1?utm_source=test",
+            cleanedUrl = "https://x.com/user/status/1",
+            platformKey = "x",
+            platformName = "X",
+        )
+        val withEmbed = PreparedLink(detected, "https://fixvx.com/user/status/1")
+        val withoutEmbed = PreparedLink(detected, null)
+
+        assertEquals(detected.cleanedUrl, withEmbed.textUrlFor(ShareAction.Clean))
+        assertEquals("https://fixvx.com/user/status/1", withEmbed.textUrlFor(ShareAction.Embed))
+        assertEquals(detected.cleanedUrl, withoutEmbed.textUrlFor(ShareAction.Embed))
+        assertNull(withEmbed.textUrlFor(ShareAction.Ask))
+        assertNull(withEmbed.textUrlFor(ShareAction.Download))
+    }
+
+    @Test
     fun prepareReturnsNullWhenTextHasNoUrl() = runTest {
         val processor = LinkProcessor(catalog)
         try {

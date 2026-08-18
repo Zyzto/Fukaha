@@ -79,11 +79,11 @@ class ShareActivity : AppCompatActivity() {
                 when (action) {
                     ShareAction.Ask -> Unit
                     ShareAction.Clean -> {
-                        shareText(prepared!!.detected.cleanedUrl)
+                        shareText(prepared!!.textUrlFor(action)!!)
                         finish()
                     }
                     ShareAction.Embed -> {
-                        shareText(prepared!!.embedUrl ?: prepared!!.detected.cleanedUrl)
+                        shareText(prepared!!.textUrlFor(action)!!)
                         finish()
                     }
                     ShareAction.Download -> {
@@ -114,13 +114,13 @@ class ShareActivity : AppCompatActivity() {
                         onDismiss = { finish() },
                         onShareCleaned = {
                             prepared?.let {
-                                shareText(it.detected.cleanedUrl)
+                                shareText(it.textUrlFor(ShareAction.Clean)!!)
                                 finish()
                             }
                         },
                         onShareEmbed = {
                             prepared?.let {
-                                shareText(it.embedUrl ?: it.detected.cleanedUrl)
+                                shareText(it.textUrlFor(ShareAction.Embed)!!)
                                 finish()
                             }
                         },

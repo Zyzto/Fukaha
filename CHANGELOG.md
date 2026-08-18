@@ -4,6 +4,24 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-18
+
+### Added
+- Japanese, Simplified Chinese, and Spanish on Android and the PWA
+- Language menu and theme-cycle controls with motion on both platforms
+- About credits, version, tutorial, and update check inline on Settings
+- Android brand vector that matches the website icon
+- Content-hashed production JS, hashed service-worker cache, and Firebase headers for those bundles
+- Tests for locale helpers, Android resource parity, web UI/DOM/settings, and PWA static assets
+- Screenshots for the language picker, embedder health, RTL help, and JA/ZH/ES Settings
+
+### Changed
+- Web Settings, share sheet, theme, and language UI aligned with Android
+- Embed sharing falls back to the cleaned URL when no fixer exists
+- Language persistence accepts locale tags and migrates legacy values
+- R8 no longer applies blanket serialization and OkHttp keep rules
+- Android versionName 0.5.0 with versionCode 11
+
 ## [0.4.4] — 2026-08-15
 
 ### Changed

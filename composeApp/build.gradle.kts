@@ -24,8 +24,8 @@ android {
         applicationId = "app.fukaha"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 10
-        versionName = "0.4.4"
+        versionCode = 11
+        versionName = "0.5.0"
     }
 
     buildFeatures {
@@ -94,7 +94,7 @@ dependencies {
     implementation(libs.composeFoundation)
     implementation(libs.composeMaterial3)
     implementation(libs.composeMaterialIcons)
-    implementation(libs.composeUiToolingPreview)
+    testImplementation(libs.kotlin.test)
     debugImplementation(libs.composeUiTooling)
 }
 

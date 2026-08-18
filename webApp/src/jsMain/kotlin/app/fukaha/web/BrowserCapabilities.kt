@@ -35,6 +35,19 @@ object Platform {
     private val userAgent: String get() = window.navigator.userAgent
 
     /**
+     * Android remains present in Chromium's reduced user agent. Prefer Client Hints when the
+     * browser exposes them, with the user agent as a lightweight fallback for other browsers.
+     * Both values are read lazily so platform detection does not run during module evaluation.
+     */
+    val isAndroid: Boolean
+        get() {
+            val clientPlatform =
+                window.navigator.asDynamic().userAgentData?.platform as? String
+            return clientPlatform.equals("Android", ignoreCase = true) ||
+                Regex("""\bAndroid\b""", RegexOption.IGNORE_CASE).containsMatchIn(userAgent)
+        }
+
+    /**
      * iOS has no Web Share Target at any version, so the share-sheet path is replaced by an
      * Add to Home Screen hint. Also true for iPadOS, which reports itself as a Mac with touch.
      */

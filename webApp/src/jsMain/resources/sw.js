@@ -1,11 +1,9 @@
 // Offline app shell for Fukaha. Cleaning links is pure local logic, so once the shell is
 // cached the whole app works with no network — including a share that arrives offline.
 //
-// Strategy: stale-while-revalidate. Kotlin/JS emits fixed filenames (fukaha.js, styles.css),
-// so a deploy changes the bytes behind the same URL. Serving from cache and refreshing in the
-// background means a launch is instant, and the next launch runs the newly deployed build.
-// This only holds because firebase.json marks those files must-revalidate — with immutable
-// caching the background fetch would keep returning the old bytes from the HTTP cache.
+// Strategy: stale-while-revalidate. Development keeps the fixed fukaha.js URL. The production
+// webpack pass rewrites that URL and this cache name with the bundle's content hash, allowing
+// immutable HTTP caching while each deploy still installs a fresh offline shell.
 const CACHE = "fukaha-shell-v2";
 // Cairo and the Material Symbols subset are versioned in their URLs by Google Fonts, so they
 // are cached forever under a separate name and never revalidated. Without this the icon font

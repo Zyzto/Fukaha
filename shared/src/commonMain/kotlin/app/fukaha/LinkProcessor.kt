@@ -96,7 +96,19 @@ data class PreparedLink(
     val detected: DetectedLink,
     val embedUrl: String?,
     val embedHealth: EmbedHealthStatus = EmbedHealthStatus.Unknown,
-)
+) {
+    /**
+     * URL selected by text-sharing actions. Embed intentionally falls back to
+     * the cleaned URL when no compatible embedder exists.
+     */
+    fun textUrlFor(action: ShareAction): String? = when (action) {
+        ShareAction.Ask,
+        ShareAction.Download,
+        -> null
+        ShareAction.Clean -> detected.cleanedUrl
+        ShareAction.Embed -> embedUrl ?: detected.cleanedUrl
+    }
+}
 
 sealed class MediaDownloadResult {
     data class Success(

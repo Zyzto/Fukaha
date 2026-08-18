@@ -7,21 +7,46 @@ import java.util.Locale
 
 object LocaleHelper {
     fun resolve(language: AppLanguage): AppLanguage = when (language) {
-        AppLanguage.System ->
-            if (Locale.getDefault().language.startsWith("ar", ignoreCase = true)) {
-                AppLanguage.Arabic
-            } else {
-                AppLanguage.English
-            }
-        AppLanguage.English, AppLanguage.Arabic -> language
+        AppLanguage.System -> resolveSystemLocale(Locale.getDefault())
+        AppLanguage.English,
+        AppLanguage.Arabic,
+        AppLanguage.Japanese,
+        AppLanguage.SimplifiedChinese,
+        AppLanguage.Spanish,
+        -> language
+    }
+
+    internal fun resolveSystemLocale(locale: Locale): AppLanguage = when (locale.language.lowercase()) {
+        "ar" -> AppLanguage.Arabic
+        "ja" -> AppLanguage.Japanese
+        "zh" -> if (
+            locale.script.equals("Hans", ignoreCase = true) ||
+            locale.country.equals("CN", ignoreCase = true) ||
+            locale.country.equals("SG", ignoreCase = true)
+        ) {
+            AppLanguage.SimplifiedChinese
+        } else {
+            AppLanguage.English
+        }
+        "es" -> AppLanguage.Spanish
+        else -> AppLanguage.English
+    }
+
+    fun isRtl(language: AppLanguage): Boolean = resolve(language).isRtl
+
+    fun languageTag(language: AppLanguage): String = when (resolve(language)) {
+        AppLanguage.System -> error("System language must resolve to a concrete locale")
+        AppLanguage.English -> "en"
+        AppLanguage.Arabic -> "ar"
+        AppLanguage.Japanese -> "ja"
+        AppLanguage.SimplifiedChinese -> "zh-CN"
+        AppLanguage.Spanish -> "es"
     }
 
     fun apply(language: AppLanguage) {
-        // Explicit EN/AR only in the UI; System means follow device until the user picks.
         val locales = when (language) {
             AppLanguage.System -> LocaleListCompat.getEmptyLocaleList()
-            AppLanguage.English -> LocaleListCompat.forLanguageTags("en")
-            AppLanguage.Arabic -> LocaleListCompat.forLanguageTags("ar")
+            else -> LocaleListCompat.forLanguageTags(languageTag(language))
         }
         val currentTags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
         val nextTags = locales.toLanguageTags()

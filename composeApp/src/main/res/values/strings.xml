@@ -3,6 +3,7 @@
     <string name="app_name">Fukaha</string>
     <string name="settings">Settings</string>
     <string name="about">About</string>
+    <string name="back">Back</string>
     <string name="share_media">Share media file</string>
     <string name="copied">Copied</string>
     <string name="no_link">No link found in shared text</string>

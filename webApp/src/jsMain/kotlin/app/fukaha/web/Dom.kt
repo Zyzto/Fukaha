@@ -11,23 +11,31 @@ import org.w3c.dom.HTMLInputElement
 object Icon {
     const val BACK = "arrow_back"
     const val CHECK = "check"
+    const val CHEVRON = "chevron_right"
     const val CLEAN = "cleaning_services"
+    const val CODE = "code"
     const val COPY = "content_copy"
     const val CLOSE = "close"
     const val EXPAND = "expand_more"
+    const val FAVORITE = "favorite"
     const val GO = "arrow_forward"
     const val INFO = "info"
     const val INSTALL = "install_mobile"
+    const val LANGUAGE = "language"
     const val LINK = "link"
+    const val LIGHT = "light_mode"
+    const val DARK = "dark_mode"
     const val PUBLIC = "public"
     const val SHARE = "share"
     const val OPEN_IN_BROWSER = "open_in_browser"
     const val OPEN = "open_in_new"
     const val PASTE = "content_paste"
+    const val PERSON = "person"
     const val REFRESH = "refresh"
     const val SAMPLE = "science"
     const val SETTINGS = "settings"
     const val PREVIEW = "visibility"
+    const val SYSTEM = "routine"
 }
 
 enum class ButtonStyle(val classes: String) {
@@ -141,10 +149,8 @@ fun Element.iconLink(
 private var fieldSeq = 0
 
 /**
- * M3 outlined field for a URL, matching the Android quick-link field one for one: a sample
- * button and the link icon leading, paste-or-clear plus a filled go button trailing, and a
- * support line that swaps to the error copy. Android shows a plain placeholder rather than a
- * floating label, so the outline needs no notch cut into it.
+ * M3 outlined field for a URL, matching Android's quick-link field: sample and link icons
+ * lead, while the available paste, clear, and filled go actions trail inside the outline.
  *
  * [name] is the accessible name the missing label would otherwise carry, and [errorFor] returns
  * the message for text the share flow cannot use, or null while the text is still fine.
@@ -167,6 +173,8 @@ fun Element.linkField(
     pasteLabel: String?,
     clearLabel: String,
     submitLabel: String,
+    submittingLabel: String,
+    submitting: Boolean,
     errorFor: (String) -> String?,
     onInput: (String) -> Unit,
     onSample: () -> Unit,
@@ -204,47 +212,60 @@ fun Element.linkField(
                 } as HTMLInputElement
             }
             el("div", "field-trailing") {
-                // Paste and clear are never up at the same time, so they share one slot.
-                el("div", "field-swap") {
-                    pasteLabel?.let { label ->
-                        paste = iconButton(Icon.PASTE, label, "field-btn") {
-                            // Focus first so a blocked programmatic read still leaves the field
-                            // ready for a native paste (the localhost / LAN-IP case).
-                            input.focus()
-                            requestPaste { pasted ->
-                                input.value = pasted
-                                onInput(pasted)
-                                refresh()
-                            }
-                        }
-                    }
-                    clear = iconButton(Icon.CLOSE, clearLabel, "field-btn") {
-                        input.value = ""
-                        onClear()
-                        refresh()
+                clear = iconButton(Icon.CLOSE, clearLabel, "field-btn") {
+                    input.value = ""
+                    onClear()
+                    refresh()
+                    input.focus()
+                }
+                pasteLabel?.let { label ->
+                    paste = iconButton(Icon.PASTE, label, "field-btn") {
                         input.focus()
+                        requestPaste { pasted ->
+                            input.value = pasted
+                            onInput(pasted)
+                            refresh()
+                        }
                     }
                 }
                 submit = iconButton(Icon.GO, submitLabel, "field-btn icon-btn-filled") {
                     onSubmit(input.value)
                 }
+                if (submitting) {
+                    submit.clear()
+                    submit.el("span", "spinner field-spinner") {
+                        setAttribute("aria-hidden", "true")
+                    }
+                    submit.setAttribute("aria-label", submittingLabel)
+                    submit.setAttribute("title", submittingLabel)
+                }
             }
         }
-        support = el("p", "field-support body-small") { id = supportId }
+        support = el("p", "field-support body-small") {
+            id = supportId
+            setAttribute("role", "status")
+            setAttribute("aria-live", "polite")
+        }
     }
 
     refresh = {
         val empty = input.value.isBlank()
         val error = errorFor(input.value)
+        field.setAttribute("aria-busy", submitting.toString())
+        input.disabled = submitting
         support.textContent = error ?: hint
         field.classList.toggle("field-error", error != null)
         input.setAttribute("aria-invalid", (error != null).toString())
-        // Every button keeps its slot and only hides, so the text under the caret does not jump
-        // sideways as buttons come and go on a keystroke.
+        if (error != null) input.setAttribute("aria-errormessage", supportId)
+        else input.removeAttribute("aria-errormessage")
         sample.classList.toggle("field-btn-off", !empty)
+        sample.disabled = !empty || submitting
         paste?.classList?.toggle("field-btn-off", !empty)
+        paste?.disabled = !empty || submitting
         clear.classList.toggle("field-btn-off", empty)
-        submit.classList.toggle("field-btn-off", empty || error != null)
+        clear.disabled = empty || submitting
+        submit.classList.toggle("field-btn-off", !submitting && (empty || error != null))
+        submit.disabled = submitting || empty || error != null
     }
 
     input.value = value
@@ -257,7 +278,7 @@ fun Element.linkField(
         // Android binds Go to the same condition as the arrow, so an unusable link does nothing
         // beyond the error already sitting in the support line.
         val usable = input.value.isNotBlank() && errorFor(input.value) == null
-        if (event.asDynamic().key == "Enter" && usable) onSubmit(input.value)
+        if (event.asDynamic().key == "Enter" && usable && !submitting) onSubmit(input.value)
         Unit
     }
     refresh()

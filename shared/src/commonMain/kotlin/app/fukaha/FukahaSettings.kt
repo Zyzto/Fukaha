@@ -11,13 +11,64 @@ enum class AppLanguage {
     System,
     English,
     Arabic,
+    Japanese,
+    SimplifiedChinese,
+    Spanish,
+    ;
+
+    val isRtl: Boolean
+        get() = this == Arabic
+
+    companion object {
+        /**
+         * Reads current enum names and locale-tag values written by older or
+         * platform-specific clients. Unknown values safely follow the system.
+         */
+        fun fromPersistedValue(value: String?): AppLanguage {
+            if (value.isNullOrBlank()) return System
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) }?.let { return it }
+
+            val normalized = value.replace('_', '-')
+            val language = normalized.substringBefore('-').lowercase()
+            return when (language) {
+                "en" -> English
+                "ar" -> Arabic
+                "ja" -> Japanese
+                "zh" -> {
+                    val parts = normalized.split('-')
+                    val simplified = parts.any {
+                        it.equals("Hans", ignoreCase = true) ||
+                            it.equals("CN", ignoreCase = true) ||
+                            it.equals("SG", ignoreCase = true)
+                    }
+                    if (simplified) SimplifiedChinese else System
+                }
+                "es" -> Spanish
+                else -> System
+            }
+        }
+    }
 }
 
 enum class AppTheme {
     System,
     Light,
     Dark,
+    ;
+
+    fun next(): AppTheme = when (this) {
+        System -> Light
+        Light -> Dark
+        Dark -> System
+    }
 }
+
+internal fun migrateLegacyLanguageValue(stored: String?): String =
+    if (stored == null || stored == AppLanguage.English.name) {
+        AppLanguage.System.name
+    } else {
+        AppLanguage.fromPersistedValue(stored).name
+    }
 
 data class FukahaSettings(
     val defaultAction: ShareAction = ShareAction.Ask,

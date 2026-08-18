@@ -1,17 +1,17 @@
 package app.fukaha.android.theme
 
-import android.os.Build
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import app.fukaha.AppTheme
 
 private val LightColors = lightColorScheme(
@@ -97,7 +97,6 @@ private val FukahaShapes = Shapes(
 @Composable
 fun FukahaTheme(
     theme: AppTheme = AppTheme.System,
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val dark = when (theme) {
@@ -105,13 +104,17 @@ fun FukahaTheme(
         AppTheme.Light -> false
         AppTheme.Dark -> true
     }
-    val context = LocalContext.current
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    // Dynamic colour is deliberately disabled: wallpaper-derived roles would replace the
+    // launcher-icon palette and make Android visually diverge from the branded PWA.
+    val colorScheme = if (dark) DarkColors else LightColors
+    val view = LocalView.current
+    SideEffect {
+        (view.context as? Activity)?.window?.let { window ->
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
         }
-        dark -> DarkColors
-        else -> LightColors
     }
     MaterialTheme(
         colorScheme = colorScheme,

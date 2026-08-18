@@ -54,8 +54,7 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
                 cobaltBaseUrl = prefs[Keys.cobaltBaseUrl] ?: FukahaSettings.DEFAULT_COBALT_BASE_URL,
                 cobaltApiKey = prefs[Keys.cobaltApiKey].orEmpty(),
                 resolveShortLinks = prefs[Keys.resolveShortLinks] ?: true,
-                language = prefs[Keys.language]?.let { runCatching { AppLanguage.valueOf(it) }.getOrNull() }
-                    ?: AppLanguage.System,
+                language = AppLanguage.fromPersistedValue(prefs[Keys.language]),
                 theme = prefs[Keys.theme]?.let { runCatching { AppTheme.valueOf(it) }.getOrNull() }
                     ?: AppTheme.System,
                 deleteCacheAfterShare = prefs[Keys.deleteCacheAfterShare] ?: true,
@@ -87,9 +86,7 @@ class AndroidSettingsStore(private val context: Context) : SettingsStore {
         if (prefs[Keys.languageFollowsSystemMigrated] == true) return
         val stored = prefs[Keys.language]
         // Pre-System builds always persisted English as the default on any save.
-        if (stored == null || stored == AppLanguage.English.name) {
-            prefs[Keys.language] = AppLanguage.System.name
-        }
+        prefs[Keys.language] = migrateLegacyLanguageValue(stored)
         prefs[Keys.languageFollowsSystemMigrated] = true
     }
 
