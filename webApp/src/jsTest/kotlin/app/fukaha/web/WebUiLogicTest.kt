@@ -25,6 +25,25 @@ class WebUiLogicTest {
     }
 
     @Test
+    fun browserLanguageTagsPreferTheOrderedLanguagesList() {
+        assertEquals(
+            listOf("ar-SA", "en-US"),
+            browserLanguageTags("en-US", arrayOf("ar-SA", "en-US")),
+        )
+        assertEquals(listOf("ja-JP"), browserLanguageTags("ja-JP", emptyArray<String>()))
+        assertEquals(listOf("es-MX"), browserLanguageTags("es-MX", null))
+        assertEquals(emptyList(), browserLanguageTags(null, null))
+        assertEquals(emptyList(), browserLanguageTags("", arrayOf("")))
+    }
+
+    @Test
+    fun viewTransitionsAreSkippedOnWebKitEvenWhenTheApiExists() {
+        assertTrue(shouldUseViewTransitions(apiAvailable = true, webKitEngine = false))
+        assertFalse(shouldUseViewTransitions(apiAvailable = true, webKitEngine = true))
+        assertFalse(shouldUseViewTransitions(apiAvailable = false, webKitEngine = false))
+    }
+
+    @Test
     fun onlyArabicUsesRtlAndEveryLocaleHasTheExpectedTag() {
         val expectedTags = mapOf(
             AppLanguage.English to "en",

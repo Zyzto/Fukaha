@@ -93,6 +93,7 @@ class App(private val root: HTMLElement) {
         // Query only: Chromium needs to know we want gesture-gated clipboard-read before
         // the paste click, otherwise localhost/LAN testing often denies without a prompt.
         Clipboard.askReadPermission()
+        installSystemAppearanceListeners()
         scope.launch {
             settings = store.get()
             health = healthStore.get()
@@ -265,20 +266,28 @@ class App(private val root: HTMLElement) {
      * Gesture-bound for the same reason as [copy], and less forgiving: a read that starts after
      * the click handler has returned is refused even where the permission was already granted.
      * [onText] receives the clipboard text; every other outcome names itself, because "denied"
-     * and "empty" ask the user for different things.
+     * and "empty" ask the user for different things. [onFallback] focuses the field so native
+     * paste still works when the programmatic read is refused.
      */
-    fun paste(onText: (String) -> Unit) {
+    fun paste(onText: (String) -> Unit, onFallback: () -> Unit = {}) {
         val promise = Clipboard.startRead()
         if (promise == null) {
+            onFallback()
             notify(if (Clipboard.isSecure) strings.clipboardFailed else strings.clipboardInsecure)
             return
         }
         promise.then(
             onFulfilled = { text ->
                 val trimmed = text.trim()
-                if (trimmed.isEmpty()) notify(strings.clipboardEmpty) else onText(trimmed)
+                if (trimmed.isEmpty()) {
+                    onFallback()
+                    notify(strings.clipboardEmpty)
+                } else {
+                    onText(trimmed)
+                }
             },
             onRejected = { error ->
+                onFallback()
                 notify(
                     when {
                         !Clipboard.isSecure -> strings.clipboardInsecure
@@ -431,8 +440,10 @@ class App(private val root: HTMLElement) {
             maxOf(centerX, window.innerWidth - centerX),
             maxOf(centerY, window.innerHeight - centerY),
         )
-        val canViewTransition =
-            jsTypeOf(document.asDynamic().startViewTransition) == "function"
+        val canViewTransition = shouldUseViewTransitions(
+            apiAvailable = jsTypeOf(document.asDynamic().startViewTransition) == "function",
+            webKitEngine = Platform.isWebKitEngine,
+        )
 
         if (canViewTransition) {
             page.style.setProperty("--theme-origin-x", "${centerX}px")
@@ -446,9 +457,18 @@ class App(private val root: HTMLElement) {
                 }
             }.getOrNull()
             if (transition != null) {
+                var cleared = false
+                val finish = {
+                    if (!cleared) {
+                        cleared = true
+                        clearThemeTransition(page)
+                    }
+                }
+                val timeout = window.setTimeout({ finish() }, 2_000)
                 scope.launch {
                     runCatching { (transition.finished as Promise<*>).await() }
-                    clearThemeTransition(page)
+                    window.clearTimeout(timeout)
+                    finish()
                 }
                 return
             }
@@ -545,8 +565,10 @@ class App(private val root: HTMLElement) {
         page.style.setProperty("--language-origin-y", "${originY}px")
         page.classList.add("language-view-transition")
 
-        val canViewTransition =
-            jsTypeOf(document.asDynamic().startViewTransition) == "function"
+        val canViewTransition = shouldUseViewTransitions(
+            apiAvailable = jsTypeOf(document.asDynamic().startViewTransition) == "function",
+            webKitEngine = Platform.isWebKitEngine,
+        )
         if (canViewTransition) {
             val transition: dynamic = runCatching {
                 document.asDynamic().startViewTransition {
@@ -554,9 +576,18 @@ class App(private val root: HTMLElement) {
                 }
             }.getOrNull()
             if (transition != null) {
+                var cleared = false
+                val finish = {
+                    if (!cleared) {
+                        cleared = true
+                        clearLanguageTransition(page)
+                    }
+                }
+                val timeout = window.setTimeout({ finish() }, 2_000)
                 scope.launch {
                     runCatching { (transition.finished as Promise<*>).await() }
-                    clearLanguageTransition(page)
+                    window.clearTimeout(timeout)
+                    finish()
                 }
                 return
             }
@@ -776,6 +807,58 @@ class App(private val root: HTMLElement) {
     private fun cancelExit(selector: String) {
         exitTimers.remove(selector)?.let { window.clearTimeout(it) }
         exitingElements.remove(selector)
+    }
+
+    /**
+     * System language/theme are CSS- and navigator-driven. iOS PWAs often only refresh those
+     * signals when the app becomes visible again, so re-read them on languagechange, pageshow,
+     * and visibility — and drop any leftover theme/language overlay that Safari left behind.
+     */
+    private fun installSystemAppearanceListeners() {
+        val onLanguageChange = EventListener { syncSystemAppearance() }
+        window.addEventListener("languagechange", onLanguageChange)
+
+        val themeMedia = window.matchMedia("(prefers-color-scheme: dark)")
+        val onThemeChange = EventListener { syncSystemAppearance() }
+        if (jsTypeOf(themeMedia.asDynamic().addEventListener) == "function") {
+            themeMedia.asDynamic().addEventListener("change", onThemeChange)
+        } else {
+            themeMedia.asDynamic().addListener(onThemeChange)
+        }
+
+        val onForeground = EventListener {
+            if (document.asDynamic().visibilityState == "hidden") return@EventListener
+            clearStaleAppearanceOverlays()
+            syncSystemAppearance()
+        }
+        window.addEventListener("pageshow", onForeground)
+        document.addEventListener("visibilitychange", onForeground)
+    }
+
+    private fun syncSystemAppearance() {
+        if (settings.language != AppLanguage.System && settings.theme != AppTheme.System) return
+        val previous = strings
+        applyLocaleAndTheme()
+        if (previous !== strings) render()
+    }
+
+    private fun clearStaleAppearanceOverlays() {
+        listOf(".theme-fallback-snapshot", ".language-fallback-snapshot").forEach { selector ->
+            document.querySelector(selector)?.let { it.parentNode?.removeChild(it) }
+        }
+        val page = document.documentElement as? HTMLElement ?: return
+        if (page.classList.contains("theme-view-transition")) {
+            page.classList.remove("theme-view-transition")
+            page.style.removeProperty("--theme-origin-x")
+            page.style.removeProperty("--theme-origin-y")
+            page.style.removeProperty("--theme-reveal-radius")
+        }
+        if (page.classList.contains("language-view-transition")) {
+            page.classList.remove("language-view-transition")
+            page.style.removeProperty("--language-origin-x")
+            page.style.removeProperty("--language-origin-y")
+        }
+        appearanceTransitions.release()
     }
 
     private fun applyLocaleAndTheme() {

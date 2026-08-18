@@ -56,6 +56,14 @@ object Platform {
             (userAgent.contains("Macintosh") && window.navigator.maxTouchPoints > 1)
 
     /**
+     * Safari and every iOS browser. Chromium also includes "AppleWebKit" in its UA, so Chrome
+     * and Android are excluded. Used to skip APIs that WebKit implements but paints incorrectly.
+     */
+    val isWebKitEngine: Boolean
+        get() = userAgent.contains("AppleWebKit") &&
+            !Regex("Chrome|Chromium|Android").containsMatchIn(userAgent)
+
+    /**
      * In-app browsers (Instagram, Facebook, X, TikTok and friends) cannot install a PWA and
      * their `navigator.share` is unreliable, so we send the user to a real browser instead.
      * Adapted from Hisab's `web/in_app_browser.js`.
@@ -129,7 +137,9 @@ object Clipboard {
     /** Returns null when the read cannot even be attempted. */
     fun startRead(): Promise<String>? {
         if (!canRead) return null
-        askReadPermission()
+        // Chromium's Permissions API query is useful; on iOS it can consume the user
+        // activation that `readText` needs to show Safari's paste confirmation.
+        if (!Platform.isIos) askReadPermission()
         val clipboard = window.navigator.asDynamic().clipboard
         return runCatching { clipboard.readText() as Promise<String> }.getOrNull()
     }

@@ -24,35 +24,39 @@
     (function () {
       var root = document.documentElement;
       var media = window.matchMedia("(prefers-color-scheme: dark)");
-      try {
-        var stored = JSON.parse(localStorage.getItem("fukaha_settings") || "{}");
-        if (stored.theme === "Dark") root.setAttribute("data-theme", "dark");
-        else if (stored.theme === "Light") root.setAttribute("data-theme", "light");
 
-        var language = stored.language || "System";
-        if (language === "System") {
-          var browserLanguages = navigator.languages || [navigator.language || "en"];
-          var supported = browserLanguages.find(function (tag) {
-            return /^(ar|ja|es)(-|$)/i.test(tag) ||
-              /^zh-(CN|SG|Hans)(-|$)/i.test(tag) ||
-              /^en(-|$)/i.test(tag);
-          }) || "en";
-          if (/^ar(-|$)/i.test(supported)) language = "Arabic";
-          else if (/^ja(-|$)/i.test(supported)) language = "Japanese";
-          else if (/^zh-(CN|SG|Hans)(-|$)/i.test(supported)) language = "SimplifiedChinese";
-          else if (/^es(-|$)/i.test(supported)) language = "Spanish";
-          else language = "English";
-        }
-        var tags = {
-          English: "en",
-          Arabic: "ar",
-          Japanese: "ja",
-          SimplifiedChinese: "zh-CN",
-          Spanish: "es",
-        };
-        root.setAttribute("lang", tags[language] || "en");
-        root.setAttribute("dir", language === "Arabic" ? "rtl" : "ltr");
-      } catch (_) {}
+      function applyStoredAppearance() {
+        try {
+          var stored = JSON.parse(localStorage.getItem("fukaha_settings") || "{}");
+          if (stored.theme === "Dark") root.setAttribute("data-theme", "dark");
+          else if (stored.theme === "Light") root.setAttribute("data-theme", "light");
+          else root.removeAttribute("data-theme");
+
+          var language = stored.language || "System";
+          if (language === "System") {
+            var browserLanguages = navigator.languages || [navigator.language || "en"];
+            var supported = browserLanguages.find(function (tag) {
+              return /^(ar|ja|es)(-|$)/i.test(tag) ||
+                /^zh-(CN|SG|Hans)(-|$)/i.test(tag) ||
+                /^en(-|$)/i.test(tag);
+            }) || "en";
+            if (/^ar(-|$)/i.test(supported)) language = "Arabic";
+            else if (/^ja(-|$)/i.test(supported)) language = "Japanese";
+            else if (/^zh-(CN|SG|Hans)(-|$)/i.test(supported)) language = "SimplifiedChinese";
+            else if (/^es(-|$)/i.test(supported)) language = "Spanish";
+            else language = "English";
+          }
+          var tags = {
+            English: "en",
+            Arabic: "ar",
+            Japanese: "ja",
+            SimplifiedChinese: "zh-CN",
+            Spanish: "es",
+          };
+          root.setAttribute("lang", tags[language] || "en");
+          root.setAttribute("dir", language === "Arabic" ? "rtl" : "ltr");
+        } catch (_) {}
+      }
 
       function syncThemeColor() {
         var forced = root.getAttribute("data-theme");
@@ -63,7 +67,12 @@
         );
       }
 
-      syncThemeColor();
+      function syncChrome() {
+        applyStoredAppearance();
+        syncThemeColor();
+      }
+
+      syncChrome();
       new MutationObserver(syncThemeColor).observe(root, {
         attributes: true,
         attributeFilter: ["data-theme"],
@@ -73,6 +82,11 @@
       } else if (typeof media.addListener === "function") {
         media.addListener(syncThemeColor);
       }
+      window.addEventListener("languagechange", syncChrome);
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") syncChrome();
+      });
+      window.addEventListener("pageshow", syncChrome);
     })();
   </script>
 
@@ -102,10 +116,14 @@
   <div id="app"></div>
 
   <script>
-    // The app removes the splash on its first render; this only covers a bundle that never runs.
+    // The app removes the splash on its first render. If the bundle never paints, keep the
+    // splash rather than revealing an empty dark page (a black screen on Safari iOS).
     setTimeout(function () {
       var splash = document.getElementById("boot-splash");
-      if (splash && splash.parentNode) splash.parentNode.removeChild(splash);
+      var app = document.getElementById("app");
+      if (!splash || !splash.parentNode) return;
+      if (app && app.childNodes.length === 0) return;
+      splash.parentNode.removeChild(splash);
     }, 10000);
   </script>
 

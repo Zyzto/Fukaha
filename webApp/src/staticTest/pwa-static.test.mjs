@@ -51,16 +51,16 @@ test("manifest is installable and every referenced icon exists", () => {
   }
 });
 
-test("Android and web release metadata share version 0.5.0", () => {
+test("Android and web release metadata share version 0.5.2", () => {
   const androidVersion = androidBuild.match(/versionName\s*=\s*"([^"]+)"/)?.[1];
   const webVersion = webVersionSource.match(/WEB_APP_VERSION\s*=\s*"([^"]+)"/)?.[1];
 
-  assert.equal(androidVersion, "0.5.0");
+  assert.equal(androidVersion, "0.5.2");
   assert.equal(webVersion, androidVersion);
   assert.match(webBuild, /version\s*=\s*webAppVersion/);
   assert.match(webBuild, /WebAppVersion\.kt/);
   assert.equal("version" in manifest, false, "Web App Manifest has no standard version member");
-  assert.doesNotMatch(serviceWorker, /0\.5\.0/);
+  assert.doesNotMatch(serviceWorker, /0\.5\.2/);
   assert.match(serviceWorker, /const CACHE = "fukaha-shell-v2"/);
 });
 
@@ -75,6 +75,7 @@ test("index local assets, theme color, locale bootstrap, and service worker agre
   assert.match(index, /SimplifiedChinese:\s*"zh-CN"/);
   assert.match(index, /language === "Arabic" \? "rtl" : "ltr"/);
   assert.match(index, /navigator\.languages \|\| \[navigator\.language \|\| "en"\]/);
+  assert.match(index, /languagechange/);
   assert.match(index, /<script src="\/fukaha\.js"><\/script>/);
   assert.match(read(resolve(kotlinRoot, "Main.kt")), /serviceWorker\?\.register\("\/sw\.js"\)/);
 });
@@ -183,6 +184,8 @@ test("responsive modal, stable top-bar, RTL arrows, and reduced motion remain en
   assert.match(styles, /grid-template-columns:[\s\S]*\[navigation\][\s\S]*\[theme\]/);
   assert.match(styles, /\.top-app-bar-placeholder\s*\{[\s\S]*visibility:\s*hidden/);
   assert.match(styles, /\[dir="rtl"\] \.icon-flip \.icon\s*\{[\s\S]*scaleX\(-1\)/);
+  assert.match(styles, /env\(safe-area-inset-top/);
+  assert.match(styles, /--app-bar-height:\s*96px/);
   assert.match(styles, /\.shell-share\s*\{[\s\S]*border-radius:[^;]*0 0/);
   assert.match(styles, /@media \(min-width: 600px\)[\s\S]*\.shell-share,[\s\S]*border-radius:\s*var\(--shape-xl\)/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation:\s*none !important/);
@@ -194,6 +197,8 @@ test("responsive modal, stable top-bar, RTL arrows, and reduced motion remain en
   );
   assert.match(main, /clearThemeTransition\(page\)/);
   assert.match(main, /clearLanguageTransition\(page\)/);
+  assert.match(main, /shouldUseViewTransitions/);
+  assert.match(main, /installSystemAppearanceListeners/);
 });
 
 test("fixer rows distinguish pointer focus from visible keyboard focus", () => {

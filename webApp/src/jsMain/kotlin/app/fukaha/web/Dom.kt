@@ -155,8 +155,10 @@ private var fieldSeq = 0
  * [name] is the accessible name the missing label would otherwise carry, and [errorFor] returns
  * the message for text the share flow cannot use, or null while the text is still fine.
  * [pasteLabel] is null only when the caller wants no paste control. The click focuses the
- * field first so a blocked programmatic read (localhost / LAN HTTP) still leaves native paste
- * available. [requestPaste] is handed the callback that applies the pasted text, and is
+ * field first on non-iOS browsers so a blocked programmatic read (localhost / LAN HTTP) still
+ * leaves native paste available. On iPhone the focus is deferred until after `readText`,
+ * otherwise Safari consumes the user gesture and never shows its paste confirmation.
+ * [requestPaste] is handed the callback that applies the pasted text, and is
  * invoked straight from the click so the read keeps its user activation.
  *
  * The buttons are siblings of the `<label>`, not children: a click inside a label is forwarded
@@ -178,7 +180,7 @@ fun Element.linkField(
     errorFor: (String) -> String?,
     onInput: (String) -> Unit,
     onSample: () -> Unit,
-    requestPaste: ((String) -> Unit) -> Unit,
+    requestPaste: (apply: (String) -> Unit, onFallback: () -> Unit) -> Unit,
     onSubmit: (String) -> Unit,
     onClear: () -> Unit,
 ): HTMLInputElement {
@@ -220,12 +222,18 @@ fun Element.linkField(
                 }
                 pasteLabel?.let { label ->
                     paste = iconButton(Icon.PASTE, label, "field-btn") {
-                        input.focus()
-                        requestPaste { pasted ->
-                            input.value = pasted
-                            onInput(pasted)
-                            refresh()
-                        }
+                        // iOS loses the click's user activation if the input is focused first,
+                        // so Safari never shows its paste confirmation. Focus only as fallback.
+                        if (!Platform.isIos) input.focus()
+                        requestPaste(
+                            { pasted ->
+                                input.value = pasted
+                                onInput(pasted)
+                                refresh()
+                                input.focus()
+                            },
+                            { input.focus() },
+                        )
                     }
                 }
                 submit = iconButton(Icon.GO, submitLabel, "field-btn icon-btn-filled") {

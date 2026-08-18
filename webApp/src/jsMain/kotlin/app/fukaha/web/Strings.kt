@@ -669,9 +669,9 @@ class Strings(
         fun isArabic(language: AppLanguage): Boolean =
             resolveLanguage(language) == AppLanguage.Arabic
 
-        private fun systemLanguage(): AppLanguage {
-            val languages = listOf(window.navigator.language) + window.navigator.languages.toList()
-            return resolveLanguageTags(languages)
-        }
+        private fun systemLanguage(): AppLanguage =
+            resolveLanguageTags(
+                browserLanguageTags(window.navigator.language, window.navigator.languages),
+            )
     }
 }

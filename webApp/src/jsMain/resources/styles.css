@@ -386,10 +386,10 @@ body {
   padding-block-end: calc(40px + env(safe-area-inset-bottom));
 }
 
-/* M3 small top app bar */
+/* M3 small top app bar. Height is a min so Arabic descenders and the iOS notch inset fit. */
 .top-app-bar {
   --app-bar-slot-width: 48px;
-  --app-bar-height: 84px;
+  --app-bar-height: 96px;
   position: sticky;
   top: 0;
   z-index: 10;
@@ -401,9 +401,9 @@ body {
     [language] var(--app-bar-slot-width)
     [theme] var(--app-bar-slot-width);
   align-items: center;
-  height: var(--app-bar-height);
-  min-height: var(--app-bar-height);
-  padding-block: 8px;
+  min-height: calc(var(--app-bar-height) + env(safe-area-inset-top, 0px));
+  padding-block-start: calc(12px + env(safe-area-inset-top, 0px));
+  padding-block-end: 12px;
   background: var(--surface);
 }
 
@@ -439,6 +439,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.4;
 }
 
 .top-app-bar-title-home {
@@ -447,7 +448,7 @@ body {
 
 .top-app-bar-title-home .top-app-bar-headline .title-large {
   font-size: 32px;
-  line-height: 1.15;
+  line-height: 1.4;
   font-weight: 700;
 }
 
@@ -2025,7 +2026,7 @@ html.language-view-transition *::after {
 @media (max-width: 380px) {
   .top-app-bar {
     --app-bar-slot-width: 44px;
-    --app-bar-height: 72px;
+    --app-bar-height: 84px;
   }
 
   .top-app-bar-title-home .brand-mark {

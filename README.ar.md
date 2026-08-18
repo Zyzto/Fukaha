@@ -81,10 +81,10 @@
 
 <div dir="ltr">
 <p align="center">
-  <img src="screenshots/share-sheet-ar.png" alt="ورقة المشاركة — تنظيف أو معاينة أو تحميل" width="180" />
-  <img src="screenshots/settings-ar.png" alt="الإعدادات" width="180" />
-  <img src="screenshots/fixer-picker-ar.png" alt="اختيار خدمة المعاينة" width="180" />
-  <img src="screenshots/about-ar.png" alt="حول — shenepoy" width="180" />
+  <img src="screenshots/ar-light-share.png" alt="ورقة المشاركة — تنظيف أو معاينة أو تحميل" width="180" />
+  <img src="screenshots/ar-light-settings.png" alt="الإعدادات" width="180" />
+  <img src="screenshots/ar-light-embedders.png" alt="خدمات المعاينة المفضّلة" width="180" />
+  <img src="screenshots/ar-light-about.png" alt="حول — shenepoy" width="180" />
 </p>
 </div>
 
@@ -92,10 +92,10 @@
 <summary>السمة الداكنة</summary>
 <div dir="ltr">
 <p align="center">
-  <img src="screenshots/share-sheet-ar-dark.png" alt="ورقة المشاركة — داكن" width="180" />
-  <img src="screenshots/settings-ar-dark.png" alt="الإعدادات — داكن" width="180" />
-  <img src="screenshots/fixer-picker-ar-dark.png" alt="اختيار خدمة المعاينة — داكن" width="180" />
-  <img src="screenshots/about-ar-dark.png" alt="حول — داكن" width="180" />
+  <img src="screenshots/ar-dark-share.png" alt="ورقة المشاركة — داكن" width="180" />
+  <img src="screenshots/ar-dark-settings.png" alt="الإعدادات — داكن" width="180" />
+  <img src="screenshots/ar-dark-embedders.png" alt="خدمات المعاينة المفضّلة — داكن" width="180" />
+  <img src="screenshots/ar-dark-about.png" alt="حول — داكن" width="180" />
 </p>
 </div>
 </details>

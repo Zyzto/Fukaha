@@ -221,7 +221,7 @@ fun renderPasteCard(app: App, parent: HTMLElement) {
                 errorFor = { if (it.isNotBlank() && shareableLink(it) == null) s.pasteInvalid else null },
                 onInput = { app.draft = it },
                 onSample = { app.prepare(SAMPLE_LINK) },
-                requestPaste = { apply -> app.paste(apply) },
+                requestPaste = { apply, onFallback -> app.paste(apply, onFallback) },
                 onSubmit = { submit(app, it) },
                 onClear = { app.draft = "" },
             )

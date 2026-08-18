@@ -301,6 +301,7 @@ class MainActivity : AppCompatActivity() {
                                         onSelect = { persist(settings.copy(theme = it)) },
                                     )
                                 },
+                                expandedHeight = 96.dp,
                                 scrollBehavior = scrollBehavior,
                                 colors = barColors,
                             )

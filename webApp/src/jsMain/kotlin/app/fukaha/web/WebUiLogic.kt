@@ -37,6 +37,21 @@ internal fun resolveLanguageTags(tags: List<String>): AppLanguage =
         }
     } ?: AppLanguage.English
 
+/**
+ * Prefer `navigator.languages` (user's ordered preferences). `navigator.language` is only a
+ * fallback when that list is empty — prepending it can hide Arabic/Japanese behind a stale
+ * UI language, which iOS Safari PWAs are prone to reporting.
+ */
+internal fun browserLanguageTags(language: String?, languages: Array<out String>?): List<String> {
+    val listed = languages?.filter { it.isNotBlank() }.orEmpty()
+    if (listed.isNotEmpty()) return listed
+    return listOfNotNull(language?.takeIf { it.isNotBlank() })
+}
+
+/** Safari 18 implements View Transitions but root snapshots often paint a persistent black layer. */
+internal fun shouldUseViewTransitions(apiAvailable: Boolean, webKitEngine: Boolean): Boolean =
+    apiAvailable && !webKitEngine
+
 private fun String.matchesLanguagePrefix(prefix: String): Boolean =
     equals(prefix, ignoreCase = true) || startsWith("$prefix-", ignoreCase = true)
 
