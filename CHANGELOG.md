@@ -4,6 +4,19 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-08-18
+
+### Fixed
+- Safari iOS black screen: keep the boot splash if the bundle never paints, and skip WebKit view transitions that paint incorrectly
+- PWA safe-area: top app bar accounts for the iOS notch (`safe-area-inset-top`)
+- iPhone paste: do not consume the user gesture with a Permissions API query, and defer field focus until after `readText`
+- Arabic app bar: taller bar and line-height so descenders are not clipped
+- System language and theme: re-sync on `languagechange`, visibility, and pageshow so PWA chrome matches the device
+
+### Changed
+- Android versionName 0.5.2 with versionCode 13
+- README screenshot paths and recaptured store images
+
 ## [0.5.1] — 2026-08-18
 
 ### Added
