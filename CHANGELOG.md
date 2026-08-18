@@ -4,6 +4,18 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-08-18
+
+### Added
+- Locale-switch snapshot cover so changing language does not flash a black window
+- Night-mode window surface colors that match the Compose theme
+- Settings, embedders, About, and share screenshots for English, Arabic, Japanese, Chinese, and Spanish in light and dark
+
+### Changed
+- Restore the paste-a-link field as the first Settings section
+- Tests lock the paste-field strings and `shareableLink` parsing
+- Android versionName 0.5.1 with versionCode 12
+
 ## [0.5.0] — 2026-08-18
 
 ### Added

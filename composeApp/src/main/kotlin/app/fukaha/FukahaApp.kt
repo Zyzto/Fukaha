@@ -12,6 +12,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 
 class FukahaApp : Application() {
+    @Volatile
+    var lastKnownSettings: FukahaSettings = FukahaSettings()
+        private set
+
     lateinit var settingsStore: AndroidSettingsStore
         private set
 
@@ -34,7 +38,8 @@ class FukahaApp : Application() {
         )
         bridge = FukahaBridge()
         runBlocking {
-            LocaleHelper.apply(settingsStore.get().language)
+            lastKnownSettings = settingsStore.get()
+            LocaleHelper.apply(lastKnownSettings.language)
         }
 
         // Probes are started by MainActivity. Cancel only after a real background
@@ -50,6 +55,10 @@ class FukahaApp : Application() {
                 }
             },
         )
+    }
+
+    fun noteSettings(settings: FukahaSettings) {
+        lastKnownSettings = settings
     }
 }
 

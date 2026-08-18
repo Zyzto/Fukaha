@@ -2,4 +2,8 @@
 <resources>
     <color name="ic_launcher_bg">#FFFFFF</color>
     <color name="seed">#2A6F7F</color>
+    <!-- Matches composeApp/.../theme/Color.kt surfaceLight / surfaceDark. -->
+    <color name="fukaha_surface_light">#F6FBF5</color>
+    <color name="fukaha_surface_dark">#0F1511</color>
+    <color name="fukaha_surface">@color/fukaha_surface_light</color>
 </resources>

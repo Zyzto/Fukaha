@@ -1,6 +1,7 @@
 package app.fukaha.android
 
 import app.fukaha.BuildConfig
+import app.fukaha.android.settings.shareableLink
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.test.Test
@@ -106,9 +107,58 @@ class AndroidResourceParityTest {
     }
 
     @Test
+    fun androidSettingsKeepsTheInAppPasteFieldAtTheTop() {
+        val settings = File(
+            "src/main/kotlin/app/fukaha/android/settings/SettingsScreens.kt",
+        ).readText()
+        val firstItem = settings
+            .substringAfter("LazyColumn(")
+            .substringAfter("item {")
+            .substringBefore("item {")
+
+        assertTrue(
+            "QuickLinkSection(" in firstItem,
+            "Paste-a-link must remain the first Android Settings section",
+        )
+        assertTrue("fun QuickLinkSection(" in settings)
+        assertTrue("Icons.Outlined.Science" in settings)
+        assertTrue("Icons.Outlined.ContentPaste" in settings)
+        assertTrue("R.string.quick_use_clear" in settings)
+        assertTrue("R.string.quick_use_open" in settings)
+        assertTrue("ShareActivity.EXTRA_FORCE_ASK" in settings)
+        assertTrue("Intent(this, ShareActivity::class.java)" in settings)
+
+        val strings = readStrings(localizedFiles.getValue("en"))
+        listOf(
+            "section_quick_use",
+            "quick_use_hint",
+            "quick_use_field_placeholder",
+            "quick_use_paste",
+            "quick_use_clear",
+            "quick_use_open",
+            "quick_use_invalid",
+            "quick_use_clipboard_empty",
+            "quick_use_sample",
+        ).forEach { name ->
+            assertTrue(strings.containsKey(name), "Missing Android paste-field string $name")
+        }
+    }
+
+    @Test
+    fun shareableLinkAcceptsUrlsAndBareHosts() {
+        assertEquals(
+            "https://x.com/user/status/1",
+            shareableLink("https://x.com/user/status/1"),
+        )
+        assertEquals("https://x.com/user/status/1", shareableLink("  x.com/user/status/1  "))
+        assertEquals(null, shareableLink(""))
+        assertEquals(null, shareableLink("not a link"))
+    }
+
+    @Test
     fun buildVersionAndLocalizedVersionLabelsStayConsistent() {
-        assertEquals("0.5.0", BuildConfig.VERSION_NAME)
-        assertTrue(BuildConfig.VERSION_CODE >= 11, "versionCode must not decrease")
+        assertEquals("0.5.1", BuildConfig.VERSION_NAME)
+        assertTrue(BuildConfig.VERSION_CODE >= 12, "versionCode must not decrease")
 
         val expectedLabels = mapOf(
             "en" to "Version",

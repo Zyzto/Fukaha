@@ -1,6 +1,7 @@
 package app.fukaha.android.theme
 
 import android.app.Activity
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -9,6 +10,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -109,11 +111,8 @@ fun FukahaTheme(
     val colorScheme = if (dark) DarkColors else LightColors
     val view = LocalView.current
     SideEffect {
-        (view.context as? Activity)?.window?.let { window ->
-            WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !dark
-                isAppearanceLightNavigationBars = !dark
-            }
+        (view.context as? Activity)?.let { activity ->
+            applyWindowSurface(activity, dark)
         }
     }
     MaterialTheme(
@@ -122,4 +121,19 @@ fun FukahaTheme(
         shapes = FukahaShapes,
         content = content,
     )
+}
+
+fun AppTheme.resolvesDark(systemDark: Boolean): Boolean = when (this) {
+    AppTheme.System -> systemDark
+    AppTheme.Light -> false
+    AppTheme.Dark -> true
+}
+
+fun applyWindowSurface(activity: Activity, dark: Boolean) {
+    val color = if (dark) surfaceDark.toArgb() else surfaceLight.toArgb()
+    activity.window.setBackgroundDrawable(ColorDrawable(color))
+    WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
+        isAppearanceLightStatusBars = !dark
+        isAppearanceLightNavigationBars = !dark
+    }
 }
