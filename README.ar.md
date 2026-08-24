@@ -135,11 +135,11 @@
 
 ## التطوير
 
-**المتطلبات:** JDK 17 · Android SDK 35 · جهاز/محاكي (minSdk 26)
+**المتطلبات:** JDK 17 · Android SDK 37 · جهاز/محاكي (minSdk 26)
 
 ```bash
 export ANDROID_HOME=~/Android/Sdk
-./gradlew :shared:testDebugUnitTest
+./gradlew :shared:testAndroidHostTest
 ./gradlew :composeApp:assembleDebug
 adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
 ```

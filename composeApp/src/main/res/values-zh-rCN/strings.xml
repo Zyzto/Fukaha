@@ -27,6 +27,7 @@
     <string name="theme_system">跟随系统</string>
     <string name="theme_light">浅色</string>
     <string name="theme_dark">深色</string>
+    <string name="theme_hold_system">长按使用系统主题</string>
     <string name="delete_cache">分享后删除缓存</string>
     <string name="delete_cache_hint">分享完成后删除已下载的媒体</string>
     <string name="clear_cache">清除媒体缓存</string>

@@ -101,11 +101,72 @@ class WebUiLogicTest {
     }
 
     @Test
-    fun unsupportedShareSheetNoticeIsAndroidOnly() {
-        assertTrue(shouldShowAndroidInstallNotice(canPrompt = false, isAndroid = true, isIos = false))
-        assertFalse(shouldShowAndroidInstallNotice(canPrompt = true, isAndroid = true, isIos = false))
-        assertFalse(shouldShowAndroidInstallNotice(canPrompt = false, isAndroid = false, isIos = false))
-        assertFalse(shouldShowAndroidInstallNotice(canPrompt = false, isAndroid = false, isIos = true))
+    fun shareTargetCopyIsOfferedOnlyWhereThePwaCanReceiveShares() {
+        assertEquals(
+            HomeShareTargetMessage.OfferInstall,
+            homeShareTargetMessage(
+                isStandalone = false,
+                canPrompt = true,
+                isAndroid = true,
+                isIos = false,
+            ),
+        )
+        assertEquals(
+            HomeShareTargetMessage.InstalledNote,
+            homeShareTargetMessage(
+                isStandalone = true,
+                canPrompt = false,
+                isAndroid = true,
+                isIos = false,
+            ),
+        )
+        assertEquals(
+            HomeShareTargetMessage.AndroidNeedsChrome,
+            homeShareTargetMessage(
+                isStandalone = false,
+                canPrompt = false,
+                isAndroid = true,
+                isIos = false,
+            ),
+        )
+        assertEquals(
+            HomeShareTargetMessage.IosPasteHint,
+            homeShareTargetMessage(
+                isStandalone = false,
+                canPrompt = false,
+                isAndroid = false,
+                isIos = true,
+            ),
+        )
+        assertEquals(
+            HomeShareTargetMessage.None,
+            homeShareTargetMessage(
+                isStandalone = true,
+                canPrompt = false,
+                isAndroid = false,
+                isIos = true,
+            ),
+            "iOS home-screen apps cannot join the share sheet",
+        )
+        assertEquals(
+            HomeShareTargetMessage.None,
+            homeShareTargetMessage(
+                isStandalone = false,
+                canPrompt = true,
+                isAndroid = false,
+                isIos = false,
+            ),
+            "desktop Chromium can install without becoming a share target",
+        )
+        assertEquals(
+            HomeShareTargetMessage.None,
+            homeShareTargetMessage(
+                isStandalone = true,
+                canPrompt = false,
+                isAndroid = false,
+                isIos = false,
+            ),
+        )
     }
 
     @Test

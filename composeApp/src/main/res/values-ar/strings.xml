@@ -27,6 +27,7 @@
     <string name="theme_system">حسب النظام</string>
     <string name="theme_light">فاتح</string>
     <string name="theme_dark">داكن</string>
+    <string name="theme_hold_system">اضغط مطولاً لاتباع سمة النظام</string>
     <string name="delete_cache">حذف الملفات المؤقتة بعد المشاركة</string>
     <string name="delete_cache_hint">يزيل الوسائط المحمّلة بعد اكتمال المشاركة</string>
     <string name="clear_cache">مسح ملفات الوسائط المؤقتة</string>

@@ -27,6 +27,7 @@
     <string name="theme_system">Sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Oscuro</string>
+    <string name="theme_hold_system">Mantén pulsado para el tema del sistema</string>
     <string name="delete_cache">Eliminar la caché después de compartir</string>
     <string name="delete_cache_hint">Eliminar el contenido descargado cuando termine de compartirse</string>
     <string name="clear_cache">Borrar caché multimedia</string>

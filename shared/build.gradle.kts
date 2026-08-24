@@ -2,20 +2,24 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
-    androidTarget {
+    android {
+        namespace = "app.fukaha.shared"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_17)
         }
+        withHostTest {}
     }
 
     js {
         browser {
-            // Logic is covered by :shared:testDebugUnitTest; running the same tests in a
+            // Logic is covered by :shared:testAndroidHostTest; running the same tests in a
             // browser would pull Karma and Chrome into every build.
             testTask { enabled = false }
         }
@@ -54,17 +58,5 @@ kotlin {
         jsMain.dependencies {
             implementation(libs.ktor.client.js)
         }
-    }
-}
-
-android {
-    namespace = "app.fukaha.shared"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-    defaultConfig {
-        minSdk = libs.versions.android.minSdk.get().toInt()
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }

@@ -123,12 +123,6 @@ fun FukahaTheme(
     )
 }
 
-fun AppTheme.resolvesDark(systemDark: Boolean): Boolean = when (this) {
-    AppTheme.System -> systemDark
-    AppTheme.Light -> false
-    AppTheme.Dark -> true
-}
-
 fun applyWindowSurface(activity: Activity, dark: Boolean) {
     val color = if (dark) surfaceDark.toArgb() else surfaceLight.toArgb()
     activity.window.setBackgroundDrawable(ColorDrawable(color))

@@ -79,7 +79,6 @@ import app.fukaha.android.settings.SettingsScreen
 import app.fukaha.android.settings.UpdateAvailableDialog
 import app.fukaha.android.theme.FukahaTheme
 import app.fukaha.android.theme.applyWindowSurface
-import app.fukaha.android.theme.resolvesDark
 import app.fukaha.android.update.ApkUpdateUiState
 import app.fukaha.android.update.ApkUpdater
 import app.fukaha.fukaha

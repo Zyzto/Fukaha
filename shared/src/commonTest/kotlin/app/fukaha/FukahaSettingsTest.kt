@@ -58,13 +58,21 @@ class FukahaSettingsTest {
     }
 
     @Test
-    fun themeCycleIsExhaustiveAndReturnsToSystem() {
-        assertEquals(AppTheme.Light, AppTheme.System.next())
-        assertEquals(AppTheme.Dark, AppTheme.Light.next())
-        assertEquals(AppTheme.System, AppTheme.Dark.next())
-        AppTheme.entries.forEach { theme ->
-            assertEquals(theme, theme.next().next().next())
-        }
+    fun tapTogglesLightAndDarkAndLeavesSystemForTheOppositeLook() {
+        assertEquals(AppTheme.Dark, AppTheme.Light.toggled(systemDark = false))
+        assertEquals(AppTheme.Dark, AppTheme.Light.toggled(systemDark = true))
+        assertEquals(AppTheme.Light, AppTheme.Dark.toggled(systemDark = false))
+        assertEquals(AppTheme.Light, AppTheme.Dark.toggled(systemDark = true))
+        assertEquals(AppTheme.Dark, AppTheme.System.toggled(systemDark = false))
+        assertEquals(AppTheme.Light, AppTheme.System.toggled(systemDark = true))
+    }
+
+    @Test
+    fun themeResolvesDarkFromTheForcedChoiceOrTheSystemLook() {
+        assertFalse(AppTheme.Light.resolvesDark(systemDark = true))
+        assertTrue(AppTheme.Dark.resolvesDark(systemDark = false))
+        assertTrue(AppTheme.System.resolvesDark(systemDark = true))
+        assertFalse(AppTheme.System.resolvesDark(systemDark = false))
     }
 
     @Test

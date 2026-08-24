@@ -2,9 +2,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.composeCompiler)
-    alias(libs.plugins.kotlinSerialization)
 }
 
 val keystoreProperties = Properties().apply {
@@ -24,8 +22,8 @@ android {
         applicationId = "app.fukaha"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 13
-        versionName = "0.5.2"
+        versionCode = 14
+        versionName = "0.5.3"
     }
 
     buildFeatures {
@@ -36,10 +34,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     packaging {
@@ -94,7 +88,7 @@ dependencies {
     implementation(libs.composeFoundation)
     implementation(libs.composeMaterial3)
     implementation(libs.composeMaterialIcons)
-    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlin.test.junit)
     debugImplementation(libs.composeUiTooling)
 }
 
@@ -102,9 +96,9 @@ tasks.register<Exec>("installAndLaunchDebug") {
     group = "install"
     description = "Install the debug APK and launch MainActivity"
     dependsOn("installDebug")
-    val adb = android.sdkDirectory.resolve("platform-tools/adb")
+    val adb = androidComponents.sdkComponents.adb
     commandLine(
-        adb.absolutePath,
+        adb.get().asFile.absolutePath,
         "shell",
         "am",
         "start",

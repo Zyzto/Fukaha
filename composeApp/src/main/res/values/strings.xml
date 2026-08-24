@@ -27,6 +27,7 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="theme_hold_system">Hold for system theme</string>
     <string name="delete_cache">Delete cache after share</string>
     <string name="delete_cache_hint">Remove downloaded media once sharing finishes</string>
     <string name="clear_cache">Clear media cache</string>

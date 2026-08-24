@@ -1,10 +1,14 @@
 package app.fukaha.android.components
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,9 +37,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -45,7 +55,9 @@ import androidx.compose.ui.unit.dp
 import app.fukaha.AppLanguage
 import app.fukaha.AppTheme
 import app.fukaha.R
+import app.fukaha.THEME_SYSTEM_HOLD_MS
 import app.fukaha.android.LocaleHelper
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -213,19 +225,69 @@ fun ThemeCycleButton(
     theme: AppTheme,
     onSelect: (AppTheme) -> Unit,
 ) {
-    val next = theme.next()
+    val systemDark = isSystemInDarkTheme()
     val label = when (theme) {
         AppTheme.System -> stringResource(R.string.theme_system)
         AppTheme.Light -> stringResource(R.string.theme_light)
         AppTheme.Dark -> stringResource(R.string.theme_dark)
     }
-    val contentDescription = stringResource(R.string.theme) + ": " + label
+    val holdHint = stringResource(R.string.theme_hold_system)
+    val contentDescription = stringResource(R.string.theme) + ": " + label + ". " + holdHint
     val scope = rememberCoroutineScope()
     val triggerScale = remember { Animatable(1f) }
+    val shakeX = remember { Animatable(0f) }
+    val shakeRot = remember { Animatable(0f) }
     var triggerAnimating by remember { mutableStateOf(false) }
+    var holdConsumed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val haptic = LocalHapticFeedback.current
+    val view = LocalView.current
+
+    LaunchedEffect(pressed) {
+        if (!pressed) {
+            if (shakeX.value != 0f) shakeX.animateTo(0f, tween(140))
+            if (shakeRot.value != 0f) shakeRot.animateTo(0f, tween(140))
+            return@LaunchedEffect
+        }
+        if (theme == AppTheme.System) return@LaunchedEffect
+
+        holdConsumed = false
+        delay(70)
+        var sign = 1f
+        var lastTick = 0
+        var elapsed = 70L
+        try {
+            while (elapsed < THEME_SYSTEM_HOLD_MS) {
+                val progress = (elapsed / THEME_SYSTEM_HOLD_MS.toFloat()).coerceIn(0f, 1f)
+                val eased = progress * progress
+                shakeX.snapTo((2f + 16f * eased) * sign)
+                shakeRot.snapTo((5f + 24f * eased) * sign)
+                sign = -sign
+                val band = (progress * 6).toInt()
+                if (band > lastTick) {
+                    lastTick = band
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                }
+                val period = (50f - 28f * eased).toLong().coerceAtLeast(16L)
+                delay(period)
+                elapsed += period
+            }
+            holdConsumed = true
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onSelect(AppTheme.System)
+        } finally {
+            shakeX.animateTo(0f, tween(150))
+            shakeRot.animateTo(0f, tween(150))
+        }
+    }
 
     IconButton(
         onClick = {
+            if (holdConsumed) {
+                holdConsumed = false
+                return@IconButton
+            }
             if (!triggerAnimating) {
                 triggerAnimating = true
                 scope.launch {
@@ -234,7 +296,7 @@ fun ThemeCycleButton(
                             targetValue = 0.82f,
                             animationSpec = tween(durationMillis = 120),
                         )
-                        onSelect(next)
+                        onSelect(theme.toggled(systemDark))
                         triggerScale.animateTo(
                             targetValue = 1f,
                             animationSpec = tween(
@@ -249,8 +311,15 @@ fun ThemeCycleButton(
                 }
             }
         },
+        interactionSource = interactionSource,
         modifier = Modifier.semantics {
             this.contentDescription = contentDescription
+            customActions = listOf(
+                CustomAccessibilityAction(holdHint) {
+                    if (theme != AppTheme.System) onSelect(AppTheme.System)
+                    true
+                },
+            )
         },
     ) {
         Crossfade(
@@ -260,6 +329,8 @@ fun ThemeCycleButton(
             modifier = Modifier.graphicsLayer {
                 scaleX = triggerScale.value
                 scaleY = triggerScale.value
+                translationX = shakeX.value
+                rotationZ = shakeRot.value
             },
         ) { currentTheme ->
             when (currentTheme) {

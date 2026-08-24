@@ -4,6 +4,16 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-08-24
+
+### Changed
+- Theme button taps Light ↔ Dark; holding it shakes harder until System
+- Home share-target copy distinguishes Android install, iOS paste, and desktop
+- Paste-a-link reads the clipboard through the Compose clipboard API
+- AGP 9.3, Kotlin 2.4, compile/target SDK 37, and the Android KMP library plugin
+- CI runs `:shared:testAndroidHostTest` plus compose unit tests
+- Android versionName 0.5.3 with versionCode 14
+
 ## [0.5.2] — 2026-08-18
 
 ### Fixed

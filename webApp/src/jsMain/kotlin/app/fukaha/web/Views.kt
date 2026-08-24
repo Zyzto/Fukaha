@@ -3,6 +3,7 @@ package app.fukaha.web
 import app.fukaha.AppLanguage
 import app.fukaha.AppTheme
 import app.fukaha.EmbedHealthStatus
+import app.fukaha.THEME_SYSTEM_HOLD_MS
 import app.fukaha.UrlCleaner
 import kotlinx.browser.window
 import org.w3c.dom.HTMLElement
@@ -156,14 +157,63 @@ private fun renderAppearanceActions(app: App, parent: HTMLElement) {
         AppTheme.Light -> Icon.LIGHT
         AppTheme.Dark -> Icon.DARK
     }
+    val themeLabel = when (app.settings.theme) {
+        AppTheme.System -> s.themeSystem
+        AppTheme.Light -> s.themeLight
+        AppTheme.Dark -> s.themeDark
+    }
     parent.iconButton(
         themeIcon,
-        s.theme,
+        "${s.theme}: $themeLabel. ${s.themeHoldSystem}",
         "theme-toggle top-app-bar-slot top-app-bar-theme",
     ) {}.apply {
-        onclick = { event ->
-            app.cycleTheme(event.currentTarget as HTMLElement)
-            Unit
+        bindThemeButtonGestures(app)
+    }
+}
+
+private fun HTMLElement.bindThemeButtonGestures(app: App) {
+    val button = this
+    var shakeTimer: Int? = null
+    var holdTimer: Int? = null
+    var skipClick = false
+
+    val stopHold = {
+        shakeTimer?.let(window::clearTimeout)
+        holdTimer?.let(window::clearTimeout)
+        shakeTimer = null
+        holdTimer = null
+        classList.remove("theme-holding")
+    }
+
+    addEventListener("pointerdown", { event ->
+        val pointerButton = event.asDynamic().button
+        if (pointerButton != null && pointerButton != 0) return@addEventListener
+        val pointerId = event.asDynamic().pointerId
+        if (pointerId != null) {
+            runCatching { asDynamic().setPointerCapture(pointerId) }
+        }
+        if (app.settings.theme == AppTheme.System) return@addEventListener
+        style.setProperty("--theme-hold-ms", "${THEME_SYSTEM_HOLD_MS - 70}ms")
+        shakeTimer = window.setTimeout({
+            classList.add("theme-holding")
+        }, 70)
+        holdTimer = window.setTimeout({
+            skipClick = true
+            stopHold()
+            app.changeTheme(button, AppTheme.System)
+        }, THEME_SYSTEM_HOLD_MS)
+    })
+    addEventListener("pointerup", { stopHold() })
+    addEventListener("pointercancel", { stopHold() })
+    oncontextmenu = { event ->
+        event.preventDefault()
+        event.stopPropagation()
+    }
+    onclick = {
+        if (skipClick) {
+            skipClick = false
+        } else {
+            app.toggleTheme(button)
         }
     }
 }
@@ -258,31 +308,31 @@ private fun shareableLink(raw: String): String? {
 
 private fun renderInstallCard(app: App, parent: HTMLElement) {
     val s = app.strings
-    if (PwaInstall.isStandalone) {
-        parent.el("p", "note note-ok body-medium", s.installedNote)
-        return
-    }
-
-    // Only Android browsers need the Chrome-specific share-target guidance. Other platforms
-    // should not see an Android requirement when this browser cannot raise an install prompt.
-    if (shouldShowAndroidInstallNotice(PwaInstall.canPrompt, Platform.isAndroid, Platform.isIos)) {
-        parent.el("p", "note body-medium", s.shareSheetUnsupported) {
-            setAttribute("title", s.notInstallableHint)
-        }
-        return
-    }
-    if (!PwaInstall.canPrompt && !Platform.isIos) return
-
-    parent.el("section", "card card-primary") {
-        el("h2", "title-medium", s.installTitle)
-        if (PwaInstall.canPrompt) {
-            el("p", "body-medium on-surface-variant", s.installBody)
-            el("div", "actions") {
-                button(s.installAction, ButtonStyle.Filled, Icon.INSTALL) { app.install() }
+    when (
+        homeShareTargetMessage(
+            isStandalone = PwaInstall.isStandalone,
+            canPrompt = PwaInstall.canPrompt,
+            isAndroid = Platform.isAndroid,
+            isIos = Platform.isIos,
+        )
+    ) {
+        HomeShareTargetMessage.InstalledNote ->
+            parent.el("p", "note note-ok body-medium", s.installedNote)
+        HomeShareTargetMessage.AndroidNeedsChrome ->
+            parent.el("p", "note body-medium", s.shareSheetUnsupported) {
+                setAttribute("title", s.notInstallableHint)
             }
-        } else {
-            el("p", "body-medium on-surface-variant", s.iosInstallHint)
-        }
+        HomeShareTargetMessage.OfferInstall ->
+            parent.el("section", "card card-primary") {
+                el("h2", "title-medium", s.installTitle)
+                el("p", "body-medium on-surface-variant", s.installBody)
+                el("div", "actions") {
+                    button(s.installAction, ButtonStyle.Filled, Icon.INSTALL) { app.install() }
+                }
+            }
+        HomeShareTargetMessage.IosPasteHint ->
+            parent.el("p", "note body-medium", s.iosInstallHint)
+        HomeShareTargetMessage.None -> Unit
     }
 }
 

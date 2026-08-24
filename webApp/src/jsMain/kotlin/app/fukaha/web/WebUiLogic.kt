@@ -71,11 +71,31 @@ internal fun draftAfterImmediateCopy(
     submittedDraft: String,
 ): String = if (copied && currentDraft == submittedDraft) "" else currentDraft
 
-internal fun shouldShowAndroidInstallNotice(
+/**
+ * Incoming Web Share Target has no JS capability API. Chromium implements it on Android
+ * after install; `beforeinstallprompt` also fires on desktop, where the PWA never joins
+ * the OS share sheet. iOS has no share target at any version.
+ */
+internal enum class HomeShareTargetMessage {
+    InstalledNote,
+    OfferInstall,
+    AndroidNeedsChrome,
+    IosPasteHint,
+    None,
+}
+
+internal fun homeShareTargetMessage(
+    isStandalone: Boolean,
     canPrompt: Boolean,
     isAndroid: Boolean,
     isIos: Boolean,
-): Boolean = !canPrompt && !isIos && isAndroid
+): HomeShareTargetMessage = when {
+    isIos -> if (isStandalone) HomeShareTargetMessage.None else HomeShareTargetMessage.IosPasteHint
+    isAndroid && isStandalone -> HomeShareTargetMessage.InstalledNote
+    isAndroid && canPrompt -> HomeShareTargetMessage.OfferInstall
+    isAndroid -> HomeShareTargetMessage.AndroidNeedsChrome
+    else -> HomeShareTargetMessage.None
+}
 
 internal data class StartupNavigation(
     val sharedText: String?,

@@ -50,17 +50,24 @@ enum class AppLanguage {
     }
 }
 
+/** Press-and-hold duration before the theme button commits System. */
+const val THEME_SYSTEM_HOLD_MS = 720
+
 enum class AppTheme {
     System,
     Light,
     Dark,
     ;
 
-    fun next(): AppTheme = when (this) {
-        System -> Light
-        Light -> Dark
-        Dark -> System
+    fun resolvesDark(systemDark: Boolean): Boolean = when (this) {
+        System -> systemDark
+        Light -> false
+        Dark -> true
     }
+
+    /** Tap target: Light ↔ Dark. From System, pick the opposite of the current look. */
+    fun toggled(systemDark: Boolean): AppTheme =
+        if (resolvesDark(systemDark)) Light else Dark
 }
 
 internal fun migrateLegacyLanguageValue(stored: String?): String =

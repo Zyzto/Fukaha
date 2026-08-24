@@ -113,11 +113,11 @@ Embedder reachability checks work here too, run manually from Settings. CORS sto
 
 ## Develop
 
-**Requirements:** JDK 17 · Android SDK 35 · Android device/emulator (minSdk 26). iOS Simulator builds need a Mac + Xcode — see [iosApp/README.md](iosApp/README.md).
+**Requirements:** JDK 17 · Android SDK 37 · Android device/emulator (minSdk 26). iOS Simulator builds need a Mac + Xcode — see [iosApp/README.md](iosApp/README.md).
 
 ```bash
 export ANDROID_HOME=~/Android/Sdk   # or your SDK path
-./gradlew :shared:testDebugUnitTest
+./gradlew :shared:testAndroidHostTest
 ./gradlew :composeApp:assembleDebug
 adb install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
 ```

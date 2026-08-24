@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -46,7 +46,7 @@ jobs:
           grep -qE "^## \[${version}\]" CHANGELOG.md
 
       - name: Unit tests
-        run: ./gradlew :shared:testDebugUnitTest --stacktrace
+        run: ./gradlew :shared:testAndroidHostTest :composeApp:testDebugUnitTest --stacktrace
 
   build-android:
     name: Build Android APK
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v5
@@ -126,7 +126,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download APK
         uses: actions/download-artifact@v4

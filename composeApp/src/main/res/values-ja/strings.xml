@@ -27,6 +27,7 @@
     <string name="theme_system">システム</string>
     <string name="theme_light">ライト</string>
     <string name="theme_dark">ダーク</string>
+    <string name="theme_hold_system">長押しでシステムテーマ</string>
     <string name="delete_cache">共有後にキャッシュを削除</string>
     <string name="delete_cache_hint">共有が完了したらダウンロード済みメディアを削除する</string>
     <string name="clear_cache">メディアキャッシュを消去</string>

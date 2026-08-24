@@ -68,6 +68,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -77,7 +78,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalUriHandler
@@ -109,6 +110,7 @@ import app.fukaha.android.theme.selectedBadgeGold
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val TEST_SHARE_URL =
     "https://x.com/makkahregion/status/1902619525532512361" +
@@ -568,7 +570,8 @@ private fun QuickLinkSection(
     onOpenSample: () -> Unit,
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     val shareable = remember(value) { shareableLink(value) }
     val showInvalid = value.isNotBlank() && shareable == null
     val appDirection = LocalLayoutDirection.current
@@ -616,15 +619,21 @@ private fun QuickLinkSection(
                                 icon = Icons.Outlined.ContentPaste,
                                 label = stringResource(R.string.quick_use_paste),
                                 onClick = {
-                                    val pasted = clipboard.getText()?.text
-                                    if (pasted.isNullOrBlank()) {
-                                        Toast.makeText(
-                                            context,
-                                            context.getString(R.string.quick_use_clipboard_empty),
-                                            Toast.LENGTH_SHORT,
-                                        ).show()
-                                    } else {
-                                        onValueChange(pasted.trim())
+                                    scope.launch {
+                                        val pasted = clipboard.getClipEntry()?.clipData
+                                            ?.takeIf { it.itemCount > 0 }
+                                            ?.getItemAt(0)
+                                            ?.coerceToText(context)
+                                            ?.toString()
+                                        if (pasted.isNullOrBlank()) {
+                                            Toast.makeText(
+                                                context,
+                                                context.getString(R.string.quick_use_clipboard_empty),
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                        } else {
+                                            onValueChange(pasted.trim())
+                                        }
                                     }
                                 },
                             )

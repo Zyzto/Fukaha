@@ -417,7 +417,13 @@ class App(private val root: HTMLElement) {
         }
     }
 
-    fun cycleTheme(origin: HTMLElement) {
+    fun toggleTheme(origin: HTMLElement) {
+        val systemDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+        changeTheme(origin, settings.theme.toggled(systemDark))
+    }
+
+    fun changeTheme(origin: HTMLElement, next: AppTheme) {
+        if (settings.theme == next) return
         if (!appearanceTransitions.acquire()) return
 
         val reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -425,7 +431,7 @@ class App(private val root: HTMLElement) {
         if (reduceMotion || page == null) {
             scope.launch {
                 try {
-                    applyThemeCycle()
+                    applyTheme(next)
                 } finally {
                     appearanceTransitions.release()
                 }
@@ -453,7 +459,7 @@ class App(private val root: HTMLElement) {
 
             val transition: dynamic = runCatching {
                 document.asDynamic().startViewTransition {
-                    scope.promise { applyThemeCycle() }
+                    scope.promise { applyTheme(next) }
                 }
             }.getOrNull()
             if (transition != null) {
@@ -483,7 +489,7 @@ class App(private val root: HTMLElement) {
         scope.launch {
             try {
                 delay(120)
-                applyThemeCycle()
+                applyTheme(next)
                 delay(500)
             } finally {
                 snapshot?.remove()
@@ -520,16 +526,8 @@ class App(private val root: HTMLElement) {
         return snapshot
     }
 
-    private suspend fun applyThemeCycle() {
-        applySettingsUpdate { current ->
-            current.copy(
-                theme = when (current.theme) {
-                    AppTheme.System -> AppTheme.Light
-                    AppTheme.Light -> AppTheme.Dark
-                    AppTheme.Dark -> AppTheme.System
-                },
-            )
-        }
+    private suspend fun applyTheme(next: AppTheme) {
+        applySettingsUpdate { current -> current.copy(theme = next) }
     }
 
     private fun clearThemeTransition(page: HTMLElement, release: Boolean = true) {
