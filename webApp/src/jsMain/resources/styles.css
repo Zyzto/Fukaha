@@ -1161,7 +1161,7 @@ body {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: color-mix(in srgb, var(--scrim) 72%, transparent);
+  background: color-mix(in srgb, var(--scrim) 54%, transparent);
   animation: scrim-in 180ms var(--ease-standard);
 }
 

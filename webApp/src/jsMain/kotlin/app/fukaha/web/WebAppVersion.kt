@@ -1,6 +1,7 @@
 package app.fukaha.web
 
 /**
- * Canonical web/PWA release version. The Gradle module/package metadata reads this value too.
+ * Web/PWA release version mirrored from the root VERSION file.
+ * The Gradle build validates that both values stay in sync.
  */
-const val WEB_APP_VERSION = "0.5.3"
+const val WEB_APP_VERSION = "26.09.0"

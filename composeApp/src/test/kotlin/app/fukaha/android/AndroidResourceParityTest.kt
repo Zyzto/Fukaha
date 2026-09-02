@@ -157,8 +157,9 @@ class AndroidResourceParityTest {
 
     @Test
     fun buildVersionAndLocalizedVersionLabelsStayConsistent() {
-        assertEquals("0.5.3", BuildConfig.VERSION_NAME)
-        assertTrue(BuildConfig.VERSION_CODE >= 14, "versionCode must not decrease")
+        val expectedVersion = File("../VERSION").readText().trim()
+        assertEquals(expectedVersion, BuildConfig.VERSION_NAME)
+        assertTrue(BuildConfig.VERSION_CODE >= 15, "versionCode must not decrease")
 
         val expectedLabels = mapOf(
             "en" to "Version",

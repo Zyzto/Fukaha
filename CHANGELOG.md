@@ -4,6 +4,17 @@ All notable changes to Fukaha are documented here.
 
 ## [Unreleased]
 
+## [26.09.0] — 2026-09-02
+
+### Fixed
+- Closing the web share popout, opening Settings, and going back now returns to the main page instead of reopening the share window
+- The web share popout now dims the page behind it with a translucent backdrop
+- Android provider checks no longer count HTTP error responses as alive
+
+### Changed
+- Android provider checks use a bounded six-request pool, remove the artificial inter-host delay, and fall back from unsupported HEAD requests to GET
+- Android, iOS, and web release metadata now use Lamha-style CalVer (`YY.0M.MICRO`) from the root `VERSION` file
+
 ## [0.5.3] — 2026-08-24
 
 ### Changed

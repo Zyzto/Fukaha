@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
+val appVersionFile = rootProject.file("VERSION")
+val appVersion = appVersionFile.readText().trim()
+check(Regex("""^[0-9]{2}\.[0-9]{2}\.[0-9]+$""").matches(appVersion)) {
+    "VERSION must be YY.0M.MICRO, got: ${appVersion.ifBlank { "<empty>" }}"
+}
+
 val keystoreProperties = Properties().apply {
     val file = rootProject.file("key.properties")
     if (file.exists()) load(file.inputStream())
@@ -22,8 +28,8 @@ android {
         applicationId = "app.fukaha"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 14
-        versionName = "0.5.3"
+        versionCode = 15
+        versionName = appVersion
     }
 
     buildFeatures {

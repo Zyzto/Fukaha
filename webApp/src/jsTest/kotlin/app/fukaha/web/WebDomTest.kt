@@ -126,6 +126,63 @@ class WebDomTest {
         assertNotNull(dialog.querySelector(".sheet-handle[aria-hidden=true]"))
         assertNotNull(dialog.querySelector("main.content-share"))
         assertNull(dialog.querySelector(".top-app-bar"))
+        assertEquals(1, root.querySelectorAll("#page-title").length)
+        assertNotNull(root.querySelector(".shell:not(.shell-share) .paste-section"))
+    }
+
+    @Test
+    fun closingShareBeforeSettingsReturnsToHome(): dynamic {
+        val browserWindow = kotlinx.browser.window.asDynamic()
+        val originalMatchMedia = browserWindow.matchMedia
+        browserWindow.matchMedia =
+            js("function(query) { return {matches: query === '(prefers-reduced-motion: reduce)'}; }")
+        return MainScope().promise {
+            try {
+                val app = App(root)
+                app.render()
+                app.prepare(SAMPLE_LINK)
+                delay(50)
+
+                assertEquals(View.Share, app.view)
+                assertNotNull(app.prepared)
+
+                app.show(View.Home)
+                assertNull(app.prepared)
+                app.show(View.Settings)
+                app.leaveSettings()
+
+                assertEquals(View.Home, app.view)
+                assertNotNull(root.querySelector("main.content .paste-section"))
+                assertNull(root.querySelector(".sheet-scrim"))
+            } finally {
+                browserWindow.matchMedia = originalMatchMedia
+            }
+        }
+    }
+
+    @Test
+    fun settingsOpenedFromShareStillReturnsToShare(): dynamic {
+        val browserWindow = kotlinx.browser.window.asDynamic()
+        val originalMatchMedia = browserWindow.matchMedia
+        browserWindow.matchMedia =
+            js("function(query) { return {matches: query === '(prefers-reduced-motion: reduce)'}; }")
+        return MainScope().promise {
+            try {
+                val app = App(root)
+                app.render()
+                app.prepare(SAMPLE_LINK)
+                delay(50)
+
+                app.show(View.Settings)
+                app.leaveSettings()
+
+                assertEquals(View.Share, app.view)
+                assertNotNull(app.prepared)
+                assertNotNull(root.querySelector(".sheet-scrim"))
+            } finally {
+                browserWindow.matchMedia = originalMatchMedia
+            }
+        }
     }
 
     @Test

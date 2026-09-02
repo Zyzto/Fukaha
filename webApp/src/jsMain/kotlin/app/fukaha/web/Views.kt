@@ -19,22 +19,36 @@ fun renderApp(app: App, root: HTMLElement) {
         return
     }
 
-    val shellParent = if (app.view == View.Share) {
-        root.el("div", "sheet-scrim") {
+    if (app.view == View.Share) {
+        renderShell(app, root, View.Home, includeSnackbar = false, background = true).apply {
+            setAttribute("aria-hidden", "true")
+            setAttribute("inert", "")
+        }
+        val scrim = root.el("div", "sheet-scrim") {
             onclick = { event ->
                 if (event.target == event.currentTarget) app.show(View.Home)
                 Unit
             }
         }
+        renderShell(app, scrim, View.Share, includeSnackbar = true)
     } else {
-        root
+        renderShell(app, root, app.view, includeSnackbar = true)
     }
-    val shellClasses = when (app.view) {
+}
+
+private fun renderShell(
+    app: App,
+    parent: HTMLElement,
+    view: View,
+    includeSnackbar: Boolean,
+    background: Boolean = false,
+): HTMLElement {
+    val shellClasses = when (view) {
         View.Share -> "shell shell-share"
         View.Home, View.Settings -> "shell"
     }
-    val shell = shellParent.el("div", shellClasses)
-    if (app.view == View.Share) {
+    val shell = parent.el("div", shellClasses)
+    if (view == View.Share) {
         shell.setAttribute("role", "dialog")
         shell.setAttribute("aria-modal", "true")
         shell.setAttribute("aria-labelledby", "page-title")
@@ -44,30 +58,38 @@ fun renderApp(app: App, root: HTMLElement) {
         }
         shell.el("div", "sheet-handle") { setAttribute("aria-hidden", "true") }
     } else {
-        renderTopAppBar(app, shell)
+        renderTopAppBar(app, shell, view, includePageTitleId = !background)
     }
 
-    val content = shell.el("main", if (app.view == View.Share) "content content-share" else "content")
-    when (app.view) {
+    val content = shell.el("main", if (view == View.Share) "content content-share" else "content")
+    when (view) {
         View.Home -> renderHome(app, content)
         View.Share -> renderShare(app, content)
         View.Settings -> renderSettings(app, content)
     }
 
-    shell.el(
-        "div",
-        if (app.status != null) "snackbar snackbar-visible" else "snackbar",
-        app.status ?: "",
-    ) {
-        setAttribute("role", "status")
-        setAttribute("aria-live", "polite")
+    if (includeSnackbar) {
+        shell.el(
+            "div",
+            if (app.status != null) "snackbar snackbar-visible" else "snackbar",
+            app.status ?: "",
+        ) {
+            setAttribute("role", "status")
+            setAttribute("aria-live", "polite")
+        }
     }
+    return shell
 }
 
-private fun renderTopAppBar(app: App, parent: HTMLElement) {
+private fun renderTopAppBar(
+    app: App,
+    parent: HTMLElement,
+    view: View,
+    includePageTitleId: Boolean = true,
+) {
     val s = app.strings
     parent.el("header", "top-app-bar") {
-        when (app.view) {
+        when (view) {
             View.Home -> {
                 el("div", "top-app-bar-title top-app-bar-title-home") {
                     el("img", "brand-mark") {
@@ -78,7 +100,7 @@ private fun renderTopAppBar(app: App, parent: HTMLElement) {
                     }
                     el("div", "top-app-bar-headline") {
                         el("h1", "title-large", s.appName) {
-                            id = "page-title"
+                            if (includePageTitleId) id = "page-title"
                             setAttribute("tabindex", "-1")
                         }
                     }

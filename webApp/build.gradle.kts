@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
+val appVersionFile = rootProject.file("VERSION")
+val appVersion = appVersionFile.readText().trim()
+check(Regex("""^[0-9]{2}\.[0-9]{2}\.[0-9]+$""").matches(appVersion)) {
+    "VERSION must be YY.0M.MICRO, got: ${appVersion.ifBlank { "<empty>" }}"
+}
+
 val webAppVersionSource = layout.projectDirectory.file(
     "src/jsMain/kotlin/app/fukaha/web/WebAppVersion.kt",
 )
@@ -14,7 +20,11 @@ val webAppVersion = Regex("""const val WEB_APP_VERSION = "([^"]+)"""")
     ?.get(1)
     ?: error("WEB_APP_VERSION is missing from ${webAppVersionSource.asFile}")
 
-version = webAppVersion
+check(webAppVersion == appVersion) {
+    "WEB_APP_VERSION ($webAppVersion) must match VERSION ($appVersion)"
+}
+
+version = appVersion
 
 kotlin {
     js {

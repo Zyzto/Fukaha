@@ -86,6 +86,7 @@ class App(private val root: HTMLElement) {
     private val exitTimers = mutableMapOf<String, Int>()
     /** Theme and locale both mutate the root snapshot, so they must share one owner. */
     private val appearanceTransitions = AppearanceTransitionGate()
+    private var settingsReturnView: View = View.Home
     internal val rootElement: HTMLElement
         get() = root
 
@@ -110,6 +111,9 @@ class App(private val root: HTMLElement) {
     // region navigation
 
     fun show(next: View) {
+        if (next == View.Settings && view != View.Settings) {
+            settingsReturnView = view
+        }
         if (view == View.Share && next != View.Share) {
             if (exitElement(".sheet-scrim", OVERLAY_EXIT_MS) { showImmediately(next) }) return
         }
@@ -117,6 +121,9 @@ class App(private val root: HTMLElement) {
     }
 
     private fun showImmediately(next: View) {
+        if (view == View.Share && next == View.Home) {
+            prepared = null
+        }
         view = next
         openFixerPlatform = null
         languageMenuOpen = false
@@ -127,7 +134,7 @@ class App(private val root: HTMLElement) {
 
     /** Settings is reached from wherever the user was, so going back returns there. */
     fun leaveSettings() {
-        show(if (prepared != null) View.Share else View.Home)
+        show(settingsReturnView)
     }
 
     // endregion

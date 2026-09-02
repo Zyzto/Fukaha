@@ -31,12 +31,12 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Tag must match versionName (tag pushes)
+      - name: Tag must match VERSION (tag pushes)
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          name=$(grep -E 'versionName\s*=' composeApp/build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "tag=$tag versionName=$name"
+          eval "$(bash ./scripts/ci/app_version.sh)"
+          echo "tag=$tag version=$name"
           test "$tag" = "$name"
 
       - name: CHANGELOG must document this version (tag pushes)
@@ -89,7 +89,8 @@ jobs:
 
       - name: Rename APK
         run: |
-          version=$(grep -E 'versionName\s*=' composeApp/build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          eval "$(bash ./scripts/ci/app_version.sh)"
+          version="$name"
           mkdir -p dist
           cp composeApp/build/outputs/apk/release/composeApp-release.apk "dist/fukaha-${version}.apk"
           ls -lh dist/

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const webRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const repoRoot = resolve(webRoot, "..");
+const repositoryVersion = readFileSync(resolve(repoRoot, "VERSION"), "utf8").trim();
 const resources = resolve(webRoot, "src/jsMain/resources");
 const kotlinRoot = resolve(webRoot, "src/jsMain/kotlin/app/fukaha/web");
 const read = (path) => readFileSync(path, "utf8");
@@ -18,6 +19,7 @@ const navigationWebpack = read(resolve(webRoot, "webpack.config.d/navigation-fal
 const androidBuild = read(resolve(repoRoot, "composeApp/build.gradle.kts"));
 const webBuild = read(resolve(webRoot, "build.gradle.kts"));
 const webVersionSource = read(resolve(kotlinRoot, "WebAppVersion.kt"));
+const iosProject = read(resolve(repoRoot, "iosApp/project.yml"));
 
 function sourceAsset(url) {
   return resolve(resources, url.replace(/^\//, ""));
@@ -51,16 +53,18 @@ test("manifest is installable and every referenced icon exists", () => {
   }
 });
 
-test("Android and web release metadata share version 0.5.2", () => {
-  const androidVersion = androidBuild.match(/versionName\s*=\s*"([^"]+)"/)?.[1];
+test("Android, iOS, and web release metadata share the root CalVer", () => {
   const webVersion = webVersionSource.match(/WEB_APP_VERSION\s*=\s*"([^"]+)"/)?.[1];
 
-  assert.equal(androidVersion, "0.5.2");
-  assert.equal(webVersion, androidVersion);
-  assert.match(webBuild, /version\s*=\s*webAppVersion/);
+  assert.match(repositoryVersion, /^[0-9]{2}\.[0-9]{2}\.[0-9]+$/);
+  assert.match(androidBuild, /val appVersionFile = rootProject\.file\("VERSION"\)/);
+  assert.match(androidBuild, /versionName\s*=\s*appVersion/);
+  assert.equal(webVersion, repositoryVersion);
+  assert.match(webBuild, /val appVersionFile = rootProject\.file\("VERSION"\)/);
+  assert.match(webBuild, /version\s*=\s*appVersion/);
   assert.match(webBuild, /WebAppVersion\.kt/);
+  assert.ok(iosProject.includes(`MARKETING_VERSION: ${repositoryVersion}`));
   assert.equal("version" in manifest, false, "Web App Manifest has no standard version member");
-  assert.doesNotMatch(serviceWorker, /0\.5\.2/);
   assert.match(serviceWorker, /const CACHE = "fukaha-shell-v2"/);
 });
 

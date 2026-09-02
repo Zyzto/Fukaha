@@ -28,6 +28,13 @@ class AppUpdateTest {
     }
 
     @Test
+    fun comparesCalVerReleasesChronologically() {
+        assertTrue(AppVersion.isNewer("26.09.0", "0.5.3"))
+        assertTrue(AppVersion.isNewer("26.10.0", "26.09.0"))
+        assertFalse(AppVersion.isNewer("26.09.0", "26.09.0"))
+    }
+
+    @Test
     fun changelogDropsFullChangelogFooterAndHeadings() {
         val notes = ChangelogFormatter.displayNotes(
             """

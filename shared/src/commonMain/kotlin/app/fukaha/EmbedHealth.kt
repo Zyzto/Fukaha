@@ -23,7 +23,7 @@ data class EmbedHealthSnapshot(
     }
 }
 
-/** Live position of a sequential embedder probe. [currentIndex] is 1-based. */
+/** Live progress of an embedder probe run. [currentIndex] counts completed probes. */
 data class EmbedHealthProgress(
     val currentHost: String,
     val currentIndex: Int,
@@ -72,7 +72,7 @@ interface EmbedHealthStore {
 object EmbedHealthPolicy {
     const val AUTO_REFRESH_INTERVAL_MS: Long = 6L * 60L * 60L * 1000L
     const val MANUAL_REFRESH_COOLDOWN_MS: Long = 10L * 60L * 1000L
-    const val INTER_HOST_DELAY_MS: Long = 750L
+    const val PROBE_CONCURRENCY: Int = 6
     const val PROBE_TIMEOUT_MS: Long = 5_000L
 
     fun isDue(checkedAtEpochMs: Long?, nowEpochMs: Long = PlatformClock.epochMillis()): Boolean {

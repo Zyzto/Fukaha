@@ -21,22 +21,20 @@ import kotlin.js.Promise
  *
  * CORS stops us reading a third-party response, but it does not stop us learning whether one
  * arrived: a `no-cors` fetch resolves with an opaque response for any HTTP status and rejects
- * only on a network-level failure (DNS, refused connection, bad TLS, timeout). That is the same
- * distinction [app.fukaha.EmbedHealthChecker] draws on Android, where the Ktor client runs with
- * `expectSuccess = false` and treats any status as alive — so a 404 counts as reachable in both.
+ * only on a network-level failure (DNS, refused connection, bad TLS, timeout). Android can also
+ * inspect the response status, but the browser cannot do that for a cross-origin opaque response.
+ * A same-origin proxy or provider CORS support would be needed to distinguish a browser-visible
+ * 404 from a reachable page here.
  *
  * An `<iframe>` cannot do this job: `onload` fires for error pages too, and hosts sending
  * `X-Frame-Options` produce a blocked frame that is indistinguishable from a dead one.
  */
 object WebEmbedHealth {
-    /** Different host per request, so a small pool is polite and finishes in seconds, not a minute. */
-    private const val CONCURRENCY = 6
-
     private val abortSignal: dynamic = js("AbortSignal")
 
     suspend fun probe(host: String): EmbedHealthStatus {
         val url = EmbedHealthKeys.probeUrl(host)
-        // Some hosts reject HEAD outright; fall back to GET exactly as the Android probe does.
+        // Some hosts reject HEAD outright; fall back to GET when the HEAD request fails.
         val reachable = request(url, "HEAD") || request(url, "GET")
         return if (reachable) EmbedHealthStatus.Alive else EmbedHealthStatus.Dead
     }
@@ -55,7 +53,7 @@ object WebEmbedHealth {
         // Coroutines on Kotlin/JS run on one thread, so a plain cursor needs no synchronisation.
         var next = 0
 
-        List(minOf(CONCURRENCY, hosts.size)) {
+        List(minOf(EmbedHealthPolicy.PROBE_CONCURRENCY, hosts.size)) {
             async {
                 while (true) {
                     val index = next

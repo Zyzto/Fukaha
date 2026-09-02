@@ -4,6 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
 
 class EmbedHealthTest {
     private val catalog = EmbedCatalog.bundled()
@@ -284,6 +286,62 @@ class EmbedHealthTest {
     }
 
     @Test
+    fun httpErrorProbeIsDead() = runTest {
+        val checker = EmbedHealthChecker.createForTests(testCatalog("https://dead.example")) { _, _ -> 404 }
+
+        try {
+            assertEquals(EmbedHealthStatus.Dead, checker.probe("https://dead.example"))
+        } finally {
+            checker.close()
+        }
+    }
+
+    @Test
+    fun headMethodNotAllowedFallsBackToGet() = runTest {
+        val methods = mutableListOf<EmbedHealthRequestMethod>()
+        val checker = EmbedHealthChecker.createForTests(testCatalog("https://head-only.example")) { _, method ->
+            methods += method
+            if (method == EmbedHealthRequestMethod.Head) 405 else 200
+        }
+
+        try {
+            assertEquals(EmbedHealthStatus.Alive, checker.probe("https://head-only.example"))
+            assertEquals(
+                listOf(EmbedHealthRequestMethod.Head, EmbedHealthRequestMethod.Get),
+                methods,
+            )
+        } finally {
+            checker.close()
+        }
+    }
+
+    @Test
+    fun refreshUsesConcurrentWorkers() = runTest {
+        var activeRequests = 0
+        var maximumActiveRequests = 0
+        val checker = EmbedHealthChecker.createForTests(
+            testCatalog(
+                "https://one.example",
+                "https://two.example",
+                "https://three.example",
+            ),
+        ) { _, _ ->
+            activeRequests += 1
+            maximumActiveRequests = maxOf(maximumActiveRequests, activeRequests)
+            delay(10)
+            activeRequests -= 1
+            200
+        }
+
+        try {
+            assertEquals(3, checker.refresh().size)
+            assertTrue(maximumActiveRequests > 1)
+        } finally {
+            checker.close()
+        }
+    }
+
+    @Test
     fun uniqueHostsAreCachedDistinctAndSorted() {
         val checker = EmbedHealthChecker.create(catalog)
         try {
@@ -342,4 +400,13 @@ class EmbedHealthTest {
             ),
         ).aliveCount)
     }
+
+    private fun testCatalog(vararg hosts: String): EmbedCatalog =
+        EmbedCatalog(
+            mapOf(
+                "test" to EmbedPlatform(
+                    services = hosts.map { host -> service(host) },
+                ),
+            ),
+        )
 }
