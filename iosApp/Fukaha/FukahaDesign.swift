@@ -46,6 +46,10 @@ extension Color {
         lightRed: 0.090, lightGreen: 0.420, lightBlue: 0.286,
         darkRed: 0.533, darkGreen: 0.847, darkBlue: 0.678,
     )
+    static let fukahaOnPrimary = fukahaAdaptive(
+        lightRed: 1.000, lightGreen: 1.000, lightBlue: 1.000,
+        darkRed: 0.000, darkGreen: 0.220, darkBlue: 0.133,
+    )
     static let fukahaPrimaryContainer = fukahaAdaptive(
         lightRed: 0.643, lightGreen: 0.949, lightBlue: 0.784,
         darkRed: 0.000, darkGreen: 0.322, darkBlue: 0.200,

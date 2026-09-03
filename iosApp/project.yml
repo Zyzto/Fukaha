@@ -59,6 +59,7 @@ targets:
     platform: iOS
     sources:
       - path: ../iosShareExtension
+      - path: Fukaha/FukahaDesign.swift
     preBuildScripts:
       - name: Compile Kotlin Framework
         basedOnDependencyAnalysis: false
