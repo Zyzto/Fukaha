@@ -5,8 +5,8 @@ import Shared
 
 /**
  * Runs the settings quick-link field through the same processed share UI as an
- * external share. Quick use deliberately forces Ask, matching Android, so the
- * pasted link is cleaned before the user chooses what to share.
+ * external share. It follows the saved default action, just like a link shared
+ * from Safari or Firefox, and only shows the chooser when Ask is selected.
  */
 struct FukahaQuickShareView: View {
     let text: String
@@ -16,6 +16,8 @@ struct FukahaQuickShareView: View {
 
     @StateObject private var model = FukahaShareModel()
     @State private var didStartPreparing = false
+    @State private var defaultActionStarted = false
+    @State private var quickShareCancelled = false
     @State private var pendingShare: FukahaPendingShare?
 
     private var isArabic: Bool {
@@ -27,7 +29,44 @@ struct FukahaQuickShareView: View {
         }
     }
 
+    private var effectiveDefaultAction: String {
+        switch settings.defaultAction.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "clean": return "Clean"
+        case "embed": return "Embed"
+        case "download": return settings.hasValidCobaltBaseUrl ? "Download" : "Ask"
+        default: return "Ask"
+        }
+    }
+
+    private var shouldShowSelection: Bool {
+        effectiveDefaultAction == "Ask" || model.error != nil || quickShareCancelled
+    }
+
     var body: some View {
+        Group {
+            if shouldShowSelection {
+                selectionScreen
+            } else {
+                autoActionProgress
+            }
+        }
+        .task { prepare() }
+        .sheet(item: $pendingShare) { pending in
+            FukahaActivityView(items: pending.items) { completed in
+                pending.cleanup?()
+                pendingShare = nil
+                if completed {
+                    onDismiss()
+                } else {
+                    // A cancelled automatic share should return to the same
+                    // choices that an Ask action would have shown.
+                    quickShareCancelled = true
+                }
+            }
+        }
+    }
+
+    private var selectionScreen: some View {
         FukahaShareScreen(
             model: model,
             isArabic: isArabic,
@@ -40,15 +79,39 @@ struct FukahaQuickShareView: View {
             onCopyCleaned: { copyText(model.cleanedUrl) },
             onCopyEmbed: { copyText(model.embedUrl) },
         )
-        .task { prepare() }
-        .sheet(item: $pendingShare) { pending in
-            FukahaActivityView(items: pending.items) { completed in
-                pending.cleanup?()
-                pendingShare = nil
-                if completed {
-                    onDismiss()
-                }
+    }
+
+    private var autoActionProgress: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(isArabic ? "فكها" : "Fukaha")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(Color.fukahaOnSurface)
+
+            HStack(spacing: 10) {
+                ProgressView()
+                    .tint(Color.fukahaPrimary)
+                    .frame(width: 24, height: 24)
+                Text(autoActionStatus)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color.fukahaOnSurface)
             }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .background(Color.fukahaSurfaceLow.ignoresSafeArea())
+        .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+    }
+
+    private var autoActionStatus: String {
+        if model.downloading {
+            return textFor(en: "Downloading…", ar: "جاري تحميل الوسائط…")
+        }
+        switch effectiveDefaultAction {
+        case "Clean": return textFor(en: "Sharing the cleaned link…", ar: "جاري مشاركة الرابط المنظّف…")
+        case "Embed": return textFor(en: "Sharing the preview link…", ar: "جاري مشاركة رابط المعاينة…")
+        case "Download": return textFor(en: "Preparing the media…", ar: "جاري تجهيز الوسائط…")
+        default: return textFor(en: "Preparing…", ar: "جاري التجهيز…")
         }
     }
 
@@ -85,7 +148,31 @@ struct FukahaQuickShareView: View {
                 model.cleanedUrl = clean
                 model.embedUrl = embed
                 model.platform = platformDisplayName(platform)
+                runDefaultActionIfNeeded()
             }
+        }
+    }
+
+    private func runDefaultActionIfNeeded() {
+        guard effectiveDefaultAction != "Ask",
+              !defaultActionStarted,
+              !model.loading,
+              !model.downloading,
+              model.error == nil,
+              model.cleanedUrl != nil else {
+            return
+        }
+
+        defaultActionStarted = true
+        switch effectiveDefaultAction {
+        case "Clean":
+            queueTextShare(model.cleanedUrl)
+        case "Embed":
+            queueTextShare(model.embedUrl ?? model.cleanedUrl)
+        case "Download":
+            shareMedia()
+        default:
+            break
         }
     }
 

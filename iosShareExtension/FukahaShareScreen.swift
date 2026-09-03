@@ -27,7 +27,7 @@ struct FukahaShareScreen: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 14) {
                     header
 
                     if model.loading || model.downloading {
@@ -66,9 +66,9 @@ struct FukahaShareScreen: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
-                .padding(.top, 4)
-                .padding(.bottom, 28)
+                .padding(.horizontal, 16)
+                .padding(.top, 0)
+                .padding(.bottom, 18)
             }
             .background(Color.fukahaSurfaceLow.ignoresSafeArea())
 
@@ -76,8 +76,8 @@ struct FukahaShareScreen: View {
                 Text(copiedMessage)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.fukahaOnPrimaryContainer)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
                     .background(Color.fukahaPrimaryContainer)
                     .clipShape(Capsule())
                     .padding(.bottom, 12)
@@ -90,17 +90,17 @@ struct FukahaShareScreen: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: 6) {
             Button(action: onDismiss) {
                 Image(systemName: "arrow.backward")
-                    .font(.system(size: 24, weight: .medium))
-                    .frame(width: 40, height: 40)
+                    .font(.system(size: 20, weight: .medium))
+                    .frame(width: 34, height: 34)
             }
             .accessibilityLabel(text(en: "Back", ar: "رجوع"))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(isArabic ? "فكها" : "Fukaha")
-                    .font(.system(size: 30, weight: .bold))
+                    .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(Color.fukahaOnSurface)
                 Text(
                     mediaDownloadEnabled
@@ -113,7 +113,7 @@ struct FukahaShareScreen: View {
                             ar: "نظّف الرابط أو جهّز المعاينة — ثم شارك من جديد",
                         ),
                 )
-                .font(.system(size: 16))
+                .font(.system(size: 14))
                 .foregroundStyle(Color.fukahaSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
@@ -122,7 +122,7 @@ struct FukahaShareScreen: View {
     }
 
     private var progressBlock: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             ProgressView()
                 .tint(Color.fukahaPrimary)
                 .frame(width: 26, height: 26)
@@ -131,30 +131,30 @@ struct FukahaShareScreen: View {
                     ? text(en: "Downloading…", ar: "جاري تحميل الوسائط…")
                     : text(en: "Preparing…", ar: "جاري التجهيز…"),
             )
-            .font(.system(size: 18, weight: .semibold))
+            .font(.system(size: 16, weight: .semibold))
             .foregroundStyle(Color.fukahaOnSurface)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 36)
+        .padding(.vertical, 24)
     }
 
     private func errorBlock(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(message)
-                .font(.system(size: 17))
+                .font(.system(size: 15))
                 .foregroundStyle(Color.fukahaError)
                 .fixedSize(horizontal: false, vertical: true)
             Button(action: onDismiss) {
                 Text(isArabic ? "حسناً" : "OK")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(maxWidth: .infinity, minHeight: 42)
             }
             .foregroundStyle(Color.fukahaPrimary)
         }
-        .padding(18)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.fukahaError.opacity(0.12))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func linkBlock(
@@ -165,16 +165,16 @@ struct FukahaShareScreen: View {
         onShare: (() -> Void)?,
         onCopy: @escaping () -> Void,
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                 Text(title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                 if let titleTrailing {
                     Spacer(minLength: 8)
                     Text(titleTrailing)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Color.fukahaPrimary)
                 }
             }
@@ -193,64 +193,63 @@ struct FukahaShareScreen: View {
     ) -> some View {
         ZStack(alignment: .trailing) {
             Image(systemName: icon)
-                .font(.system(size: 78, weight: .regular))
+                .font(.system(size: 60, weight: .regular))
                 .foregroundStyle(Color.fukahaPrimary.opacity(0.07))
-                .padding(.trailing, onShare == nil ? 8 : 72)
+                .padding(.trailing, onShare == nil ? 8 : 60)
                 .allowsHitTesting(false)
 
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 Button(action: onCopy) {
                     HStack(alignment: .center, spacing: 10) {
                         Image(systemName: "doc.on.doc")
-                            .font(.system(size: 20, weight: .medium))
+                            .font(.system(size: 18, weight: .medium))
                             .foregroundStyle(Color.fukahaPrimary)
                         Text(url)
-                            .font(.system(size: 17))
+                            .font(.system(size: 15))
                             .foregroundStyle(Color.fukahaOnSurface)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(8)
-                    .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                    .padding(6)
+                    .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
                 }
                 .buttonStyle(.plain)
 
                 if let onShare {
                     Button(action: onShare) {
                         Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 24, weight: .medium))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .font(.system(size: 20, weight: .medium))
+                            .frame(width: 52, height: 44)
                     }
-                    .frame(minWidth: 64, minHeight: 52)
-                    .padding(.horizontal, 18)
+                    .frame(width: 52, height: 44)
                     .foregroundStyle(Color.fukahaOnPrimary)
                     .background(Color.fukahaPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .accessibilityLabel(text(en: "Share", ar: "مشاركة"))
                 }
             }
-            .padding(10)
+            .padding(8)
         }
         .frame(maxWidth: .infinity)
         .background(Color.fukahaBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .environment(\.layoutDirection, .leftToRight)
     }
 
     private var mediaButton: some View {
         Button(action: onShareMedia) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: "arrow.down.to.line")
-                    .font(.system(size: 21, weight: .medium))
+                    .font(.system(size: 19, weight: .medium))
                 Text(text(en: "Share media file", ar: "مشاركة ملف الوسائط"))
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
             }
-            .frame(maxWidth: .infinity, minHeight: 52)
+            .frame(maxWidth: .infinity, minHeight: 46)
         }
         .foregroundStyle(Color.fukahaOnPrimaryContainer)
         .background(Color.fukahaPrimaryContainer)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func text(en: String, ar: String) -> String {

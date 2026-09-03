@@ -560,7 +560,7 @@ private fun EmbedHealthRow(
 /**
  * Lets the user run a link through Fukaha without sharing into it from another app.
  * The pasted text is handed to [ShareActivity] exactly like a system share would,
- * forcing the sheet so every option stays visible.
+ * so the saved default action is applied consistently.
  */
 @Composable
 private fun QuickLinkSection(
@@ -715,7 +715,6 @@ private fun Context.openShareScreen(text: String) {
             action = Intent.ACTION_SEND
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, text)
-            putExtra(ShareActivity.EXTRA_FORCE_ASK, true)
         },
     )
 }

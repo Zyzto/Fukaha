@@ -125,8 +125,11 @@ class AndroidResourceParityTest {
         assertTrue("Icons.Outlined.ContentPaste" in settings)
         assertTrue("R.string.quick_use_clear" in settings)
         assertTrue("R.string.quick_use_open" in settings)
-        assertTrue("ShareActivity.EXTRA_FORCE_ASK" in settings)
         assertTrue("Intent(this, ShareActivity::class.java)" in settings)
+        assertTrue(
+            "ShareActivity.EXTRA_FORCE_ASK" !in settings,
+            "Settings quick-link must follow the selected default action",
+        )
 
         val strings = readStrings(localizedFiles.getValue("en"))
         listOf(

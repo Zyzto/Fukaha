@@ -17,6 +17,15 @@ class UrlCleanerTest {
     }
 
     @Test
+    fun extractsUrlFromSharedHtml() {
+        val html = "<a href=\"https://x.com/user/status/123?utm_source=share\">open</a>"
+        assertEquals(
+            "https://x.com/user/status/123?utm_source=share",
+            UrlCleaner.extractFirstUrl(html),
+        )
+    }
+
+    @Test
     fun stripsTrackingParams() {
         val dirty = "https://www.instagram.com/reel/ABC123/?igshid=xyz&utm_source=ig&utm_medium=social&si=1"
         val clean = UrlCleaner.clean(dirty)

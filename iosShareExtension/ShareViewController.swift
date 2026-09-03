@@ -4,6 +4,11 @@ import SwiftUI
 import Shared
 
 class ShareViewController: UIViewController {
+    private struct SharedItemCandidate {
+        let provider: NSItemProvider
+        let typeIdentifier: String
+    }
+
     private let facade = FukahaIosFacade()
     private var settings = SettingsSnapshot.load()
 
@@ -69,29 +74,93 @@ class ShareViewController: UIViewController {
         model.downloading = false
         model.error = nil
 
-        guard let item = extensionContext?.inputItems.first as? NSExtensionItem,
-              let provider = item.attachments?.first else {
-            model.loading = false
-            model.error = t("عذراً، لم نجد رابطاً في النص المُشارَك", "No link found")
+        let extensionItems = extensionContext?.inputItems.compactMap { $0 as? NSExtensionItem } ?? []
+        let typeIdentifiers = [
+            UTType.url.identifier,
+            UTType.plainText.identifier,
+            UTType.text.identifier,
+            UTType.html.identifier,
+            UTType.data.identifier,
+        ]
+        let candidates = extensionItems.flatMap { item in
+            (item.attachments ?? []).flatMap { provider in
+                typeIdentifiers.compactMap { typeIdentifier in
+                    provider.hasItemConformingToTypeIdentifier(typeIdentifier)
+                        ? SharedItemCandidate(provider: provider, typeIdentifier: typeIdentifier)
+                        : nil
+                }
+            }
+        }
+        let fallbackTexts = extensionItems.flatMap { item in
+            [item.attributedContentText?.string, item.attributedTitle?.string]
+                .compactMap { $0 }
+        }
+        let fallbackText = fallbackTexts.first(where: { facade.extractUrl(text: $0) != nil })
+            ?? fallbackTexts.first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+
+        guard !candidates.isEmpty else {
+            if let fallbackText {
+                prepare(from: fallbackText)
+            } else {
+                showNoLink()
+            }
             return
         }
 
-        let urlType = UTType.url.identifier
-        let plain = UTType.plainText.identifier
+        loadSharedItem(from: candidates, at: 0, fallbackText: fallbackText)
+    }
 
-        if provider.hasItemConformingToTypeIdentifier(urlType) {
-            provider.loadItem(forTypeIdentifier: urlType, options: nil) { item, _ in
-                let url = (item as? URL)?.absoluteString
-                DispatchQueue.main.async { self.prepare(from: url) }
+    private func loadSharedItem(
+        from candidates: [SharedItemCandidate],
+        at index: Int,
+        fallbackText: String?,
+    ) {
+        guard index < candidates.count else {
+            if let fallbackText {
+                prepare(from: fallbackText)
+            } else {
+                showNoLink()
             }
-        } else if provider.hasItemConformingToTypeIdentifier(plain) {
-            provider.loadItem(forTypeIdentifier: plain, options: nil) { item, _ in
-                DispatchQueue.main.async { self.prepare(from: item as? String) }
-            }
-        } else {
-            model.loading = false
-            model.error = t("عذراً، لم نجد رابطاً في النص المُشارَك", "No link found")
+            return
         }
+
+        let candidate = candidates[index]
+        candidate.provider.loadItem(forTypeIdentifier: candidate.typeIdentifier, options: nil) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                guard let text = self.sharedText(from: item),
+                      self.facade.extractUrl(text: text) != nil else {
+                    self.loadSharedItem(
+                        from: candidates,
+                        at: index + 1,
+                        fallbackText: fallbackText,
+                    )
+                    return
+                }
+                self.prepare(from: text)
+            }
+        }
+    }
+
+    private func sharedText(from item: NSSecureCoding?) -> String? {
+        let value: String? = {
+            if let url = item as? URL { return url.absoluteString }
+            if let url = item as? NSURL { return url.absoluteString }
+            if let text = item as? String { return text }
+            if let text = item as? NSString { return text as String }
+            if let text = item as? NSAttributedString { return text.string }
+            if let data = item as? Data { return String(data: data, encoding: .utf8) }
+            return nil
+        }()
+        guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return value
+    }
+
+    private func showNoLink() {
+        model.loading = false
+        model.error = t("عذراً، لم نجد رابطاً في النص المُشارَك", "No link found")
     }
 
     private func prepare(from text: String?) {
