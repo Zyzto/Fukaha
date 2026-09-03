@@ -60,9 +60,9 @@ struct ContentView: View {
             get: { quickShareText != nil },
             set: { if !$0 { quickShareText = nil } },
         )) {
-            if let quickShareText {
+            if let text = quickShareText {
                 FukahaQuickShareView(
-                    text: quickShareText,
+                    text: text,
                     settings: settings,
                     facade: facade,
                     onDismiss: { quickShareText = nil },
