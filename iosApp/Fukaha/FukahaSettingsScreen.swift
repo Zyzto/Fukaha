@@ -59,6 +59,7 @@ struct FukahaSettingsScreen: View {
     @Binding var settings: SettingsSnapshot
     let onClearCache: () -> Void
     let onCheckUpdates: () -> Void
+    let onOpenQuickLink: (String) -> Void
     let updateChecking: Bool
 
     @State private var linkInput = ""
@@ -243,7 +244,9 @@ struct FukahaSettingsScreen: View {
                     }
 
                     if let shareableUrl {
-                        ShareLink(item: shareableUrl) {
+                        Button {
+                            onOpenQuickLink(shareableUrl.absoluteString)
+                        } label: {
                             Image(systemName: "arrow.forward.circle.fill")
                                 .font(.system(size: 24, weight: .medium))
                         }
@@ -261,6 +264,11 @@ struct FukahaSettingsScreen: View {
                         )
                 }
                 .environment(\.layoutDirection, .leftToRight)
+                .onSubmit {
+                    if let shareableUrl {
+                        onOpenQuickLink(shareableUrl.absoluteString)
+                    }
+                }
                 Text(showInvalidLink
                      ? text(en: "That does not look like a link yet", ar: "لا يبدو هذا رابطاً بعد")
                      : text(en: "Clean it, fix the preview, or download it.", ar: "نظّفه، أو صحّح معاينته، أو حمّله."))

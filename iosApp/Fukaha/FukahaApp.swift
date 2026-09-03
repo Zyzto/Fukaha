@@ -20,6 +20,7 @@ struct ContentView: View {
     @State private var pendingUpdate: PendingAppUpdate?
     @State private var updateChecking = false
     @State private var updateMessage: String?
+    @State private var quickShareText: String?
     private let facade = FukahaIosFacade()
 
     private var isArabic: Bool {
@@ -36,6 +37,7 @@ struct ContentView: View {
             settings: $settings,
             onClearCache: clearCache,
             onCheckUpdates: { runUpdateCheck(manual: true) },
+            onOpenQuickLink: { quickShareText = $0 },
             updateChecking: updateChecking,
         )
         .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
@@ -53,6 +55,19 @@ struct ContentView: View {
                 },
                 onDismiss: { pendingUpdate = nil },
             )
+        }
+        .sheet(isPresented: Binding(
+            get: { quickShareText != nil },
+            set: { if !$0 { quickShareText = nil } },
+        )) {
+            if let quickShareText {
+                FukahaQuickShareView(
+                    text: quickShareText,
+                    settings: settings,
+                    facade: facade,
+                    onDismiss: { quickShareText = nil },
+                )
+            }
         }
         .alert(updateMessage ?? "", isPresented: Binding(
             get: { updateMessage != nil },

@@ -27,6 +27,7 @@ targets:
     platform: iOS
     sources:
       - path: Fukaha
+      - path: ../iosShareExtension/FukahaShareScreen.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.fukaha

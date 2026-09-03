@@ -12,12 +12,24 @@ class ShareViewController: UIViewController {
 
     private var preparedClean: String?
     private var preparedEmbed: String?
+    private var hasAppeared = false
+    private var pendingDefaultAction = false
+    private var defaultActionStarted = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         setupUI()
         loadSharedUrl()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        hasAppeared = true
+        if pendingDefaultAction {
+            pendingDefaultAction = false
+            runDefaultActionIfNeeded()
+        }
     }
 
     deinit {
@@ -122,13 +134,26 @@ class ShareViewController: UIViewController {
                 self.model.error = clean == nil
                     ? self.t("تعذّر تجهيز الرابط", "Could not prepare the link")
                     : nil
-                self.runDefaultActionIfNeeded()
+                self.scheduleDefaultActionIfNeeded()
             }
         }
     }
 
+    private func scheduleDefaultActionIfNeeded() {
+        guard effectiveDefaultAction != "Ask" else { return }
+        guard preparedClean != nil, model.error == nil else { return }
+        if hasAppeared {
+            runDefaultActionIfNeeded()
+        } else {
+            pendingDefaultAction = true
+        }
+    }
+
     private func runDefaultActionIfNeeded() {
-        switch settings.defaultAction {
+        guard !defaultActionStarted else { return }
+        guard preparedClean != nil, model.error == nil else { return }
+        defaultActionStarted = true
+        switch effectiveDefaultAction {
         case "Clean":
             shareClean()
         case "Embed":
@@ -217,6 +242,15 @@ class ShareViewController: UIViewController {
         case "English", "Japanese", "SimplifiedChinese", "Spanish": return false
         default:
             return Locale.current.language.languageCode?.identifier == "ar"
+        }
+    }
+
+    private var effectiveDefaultAction: String {
+        switch settings.defaultAction.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "clean": return "Clean"
+        case "embed": return "Embed"
+        case "download": return settings.hasValidCobaltBaseUrl ? "Download" : "Ask"
+        default: return "Ask"
         }
     }
 
