@@ -45,6 +45,8 @@ CI never signs with a certificate. That is intentional until you have a team.
 
 Trigger: push / PR to `main`, or **Actions → CI → Run workflow**.
 
+For a jailbroken device, run **Actions → iOS Unsigned IPA → Run workflow**. The workflow builds an arm64 Release archive against the `iphoneos` SDK with signing disabled, packages it as `fukaha-<version>-unsigned.ipa`, and uploads it as an artifact. Download it from the workflow run and use your jailbreak-side signer/installer as needed. This artifact is not suitable for TestFlight or the App Store.
+
 ## When you get a paid Developer account
 
 Do this on a Mac with Xcode. GitHub cannot create the account for you.
@@ -57,7 +59,7 @@ Do this on a Mac with Xcode. GitHub cannot create the account for you.
 3. Xcode → both targets → Signing & Capabilities → your **Team**. Enable **App Groups** and tick `group.app.fukaha`.
 4. Archive → Distribute App → TestFlight or App Store.
 
-Device / IPA CI is **not** wired yet. After you have a distribution certificate and profiles, we can add secrets (`IOS_CERTIFICATE_BASE64`, provisioning profiles, an export options plist) to a release job. Until then, ship iOS from Xcode on your Mac.
+A signed device IPA is still not wired into the release workflow. After you have a distribution certificate and profiles, we can add secrets (`IOS_CERTIFICATE_BASE64`, provisioning profiles, and an export options plist) for normal device distribution. Until then, ship signed iOS builds from Xcode on your Mac.
 
 ## Project layout
 
