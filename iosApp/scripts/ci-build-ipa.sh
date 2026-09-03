@@ -32,9 +32,9 @@ xcodebuild \
   -configuration Release \
   -destination "generic/platform=iOS" \
   -sdk iphoneos \
-  -arch arm64 \
   -derivedDataPath "$DERIVED_DATA" \
   -archivePath "$ARCHIVE" \
+  ARCHS=arm64 \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGN_IDENTITY=- \
