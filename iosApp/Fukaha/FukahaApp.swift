@@ -1,7 +1,8 @@
 //
-// Fukaha iOS container app — Settings + About
+// Fukaha iOS container app — Android-parity settings screen
 //
 
+import Foundation
 import SwiftUI
 import Shared
 
@@ -15,7 +16,6 @@ struct FukahaApp: App {
 }
 
 struct ContentView: View {
-    @State private var tab = 0
     @State private var settings = SettingsSnapshot.load()
     @State private var pendingUpdate: PendingAppUpdate?
     @State private var updateChecking = false
@@ -25,26 +25,22 @@ struct ContentView: View {
     private var isArabic: Bool {
         switch settings.language {
         case "Arabic": return true
-        case "English": return false
+        case "English", "Japanese", "SimplifiedChinese", "Spanish": return false
         default:
             return Locale.current.language.languageCode?.identifier == "ar"
         }
     }
 
     var body: some View {
-        TabView(selection: $tab) {
-            SettingsView(settings: $settings)
-                .tabItem { Label(isArabic ? "الإعدادات" : "Settings", systemImage: "gearshape") }
-                .tag(0)
-            AboutView(
-                isArabic: isArabic,
-                updateChecking: updateChecking,
-                onCheckUpdates: { runUpdateCheck(manual: true) },
-            )
-                .tabItem { Label(isArabic ? "حول" : "About", systemImage: "info.circle") }
-                .tag(1)
-        }
+        FukahaSettingsScreen(
+            settings: $settings,
+            onClearCache: clearCache,
+            onCheckUpdates: { runUpdateCheck(manual: true) },
+            updateChecking: updateChecking,
+        )
         .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
+        .preferredColorScheme(preferredColorScheme)
+        .tint(Color.fukahaPrimary)
         .task { runUpdateCheck(manual: false) }
         .sheet(item: $pendingUpdate) { update in
             UpdateAvailableView(
@@ -64,6 +60,20 @@ struct ContentView: View {
         )) {
             Button(isArabic ? "حسناً" : "OK", role: .cancel) { updateMessage = nil }
         }
+    }
+
+    private var preferredColorScheme: ColorScheme? {
+        switch settings.theme {
+        case "Light": return .light
+        case "Dark": return .dark
+        default: return nil
+        }
+    }
+
+    private func clearCache() {
+        let cache = FileManager.default.temporaryDirectory.appendingPathComponent("fukaha")
+        try? FileManager.default.removeItem(at: cache)
+        updateMessage = isArabic ? "تم مسح ملفات الوسائط المؤقتة" : "Media cache cleared"
     }
 
     private func currentVersion() -> String {
@@ -251,251 +261,5 @@ struct SettingsSnapshot {
         d.set(NSNumber(value: lastUpdateCheckEpochMs), forKey: IosSettingsKeys.shared.LAST_UPDATE_CHECK)
         let raw = preferredFixers.map { "\($0.key)\t\($0.value)" }.joined(separator: "\n")
         d.set(raw, forKey: IosSettingsKeys.shared.PREFERRED_FIXERS)
-    }
-}
-
-struct SettingsView: View {
-    @Binding var settings: SettingsSnapshot
-    @State private var cobaltExpanded = false
-    private let facade = FukahaIosFacade()
-    private var isArabic: Bool {
-        switch settings.language {
-        case "Arabic": return true
-        case "English": return false
-        default:
-            return Locale.current.language.languageCode?.identifier == "ar"
-        }
-    }
-
-    private var actionOptions: [(id: String, label: String)] {
-        var options = [
-            ("Ask", isArabic ? "اسأل في كل مرة" : "Ask each time"),
-            ("Clean", isArabic ? "رابط نظيف" : "Clean link"),
-            ("Embed", isArabic ? "رابط معاينة" : "Embed link"),
-        ]
-        if settings.hasValidCobaltBaseUrl {
-            options.append(("Download", isArabic ? "تحميل الوسائط" : "Download media"))
-        }
-        return options
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                defaultActionSection
-                preferredFixersSection
-                networkSection
-                updatesSection
-                cobaltSection
-                appearanceSection
-            }
-            .navigationTitle(isArabic ? "الإعدادات" : "Settings")
-            .onChange(of: settings.defaultAction) { _ in settings.save() }
-            .onChange(of: settings.cobaltBaseUrl) { _ in persistCobaltUrl() }
-            .onChange(of: settings.cobaltApiKey) { _ in settings.save() }
-            .onChange(of: settings.resolveShortLinks) { _ in settings.save() }
-            .onChange(of: settings.deleteCacheAfterShare) { _ in settings.save() }
-            .onChange(of: settings.language) { _ in settings.save() }
-            .onChange(of: settings.theme) { _ in settings.save() }
-            .onChange(of: settings.checkUpdatesOnLaunch) { _ in settings.save() }
-        }
-    }
-
-    private var defaultActionSection: some View {
-        Section(isArabic ? "الإجراء الافتراضي" : "Default action") {
-            Picker(isArabic ? "الإجراء" : "Action", selection: $settings.defaultAction) {
-                ForEach(actionOptions, id: \.id) { option in
-                    Text(option.label).tag(option.id)
-                }
-            }
-            if !settings.hasValidCobaltBaseUrl {
-                Text(isArabic ? "تحميل الوسائط" : "Download media")
-                    .foregroundStyle(.tertiary)
-                Text(isArabic
-                     ? "عيّن عنوان Cobalt في تحميل الوسائط أدناه."
-                     : "Set your Cobalt URL in Media download below.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var preferredFixersSection: some View {
-        Section(isArabic ? "خدمات المعاينة المفضّلة" : "Preferred embed fixers") {
-            ForEach(Array(facade.platformKeys()), id: \.self) { key in
-                fixerPicker(for: key)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func fixerPicker(for key: String) -> some View {
-        let services = facade.serviceNames(platformKey: key)
-        if !services.isEmpty {
-            Picker(key.capitalized, selection: fixerBinding(key, fallback: services)) {
-                ForEach(services, id: \.self) { row in
-                    fixerLabel(row)
-                }
-            }
-        }
-    }
-
-    private func fixerLabel(_ row: String) -> some View {
-        let parts = row.split(separator: "\t", maxSplits: 1).map(String.init)
-        let name = parts.first ?? row
-        let host = parts.count > 1 ? parts[1] : row
-        return Text("\(name) (\(host))").tag(host)
-    }
-
-    private var networkSection: some View {
-        Section(isArabic ? "الشبكة" : "Network") {
-            Toggle(isArabic ? "تتبّع الروابط المختصرة" : "Resolve short links", isOn: $settings.resolveShortLinks)
-            Toggle(isArabic ? "حذف الملفات المؤقتة بعد المشاركة" : "Delete cache after share", isOn: $settings.deleteCacheAfterShare)
-        }
-    }
-
-    private var updatesSection: some View {
-        Section(isArabic ? "التحديثات" : "Updates") {
-            Toggle(isArabic ? "البحث عن تحديثات عند الفتح" : "Check for updates on launch", isOn: $settings.checkUpdatesOnLaunch)
-            Text(isArabic
-                 ? "يفحص إصدارات GitHub نحو مرة في اليوم. يمكنك الفحص أيضاً من صفحة حول."
-                 : "Looks at GitHub Releases about once a day. You can also check from About.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var cobaltSection: some View {
-        Section {
-            DisclosureGroup(isExpanded: $cobaltExpanded) {
-                Text(isArabic
-                     ? "يحتاج تحميل الوسائط إلى عنوان خادم Cobalt تستضيفه بنفسك (ومفتاح API إن طلبه خادمك). واجهة cobalt.tools العامة لا تعمل مع هذا التطبيق."
-                     : "Media download needs your own self-hosted Cobalt instance URL (and API key if your instance requires one). The public cobalt.tools API will not work with this app.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                TextField(isArabic ? "عنوان خادم Cobalt" : "Cobalt instance URL", text: $settings.cobaltBaseUrl)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                TextField(isArabic ? "مفتاح Cobalt (اختياري)" : "Cobalt API key (optional)", text: $settings.cobaltApiKey)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-            } label: {
-                Text(isArabic ? "تحميل الوسائط" : "Media download")
-            }
-        }
-    }
-
-    private var appearanceSection: some View {
-        Section(isArabic ? "المظهر" : "Appearance") {
-            Picker(isArabic ? "اللغة" : "Language", selection: $settings.language) {
-                Text(isArabic ? "حسب النظام" : "System").tag("System")
-                Text("English").tag("English")
-                Text("العربية").tag("Arabic")
-            }
-            Picker(isArabic ? "السمة" : "Theme", selection: $settings.theme) {
-                Text(isArabic ? "حسب النظام" : "System").tag("System")
-                Text(isArabic ? "فاتح" : "Light").tag("Light")
-                Text(isArabic ? "داكن" : "Dark").tag("Dark")
-            }
-        }
-    }
-
-    private func persistCobaltUrl() {
-        if settings.defaultAction == "Download" && !settings.hasValidCobaltBaseUrl {
-            settings.defaultAction = "Ask"
-        }
-        settings.save()
-    }
-
-    private func fixerBinding(_ key: String, fallback: [String]) -> Binding<String> {
-        Binding(
-            get: {
-                if let existing = settings.preferredFixers[key] { return existing }
-                if let def = facade.defaultFixer(platformKey: key) { return def }
-                let first = fallback.first?.split(separator: "\t").last.map(String.init)
-                return first ?? ""
-            },
-            set: { newValue in
-                settings.preferredFixers[key] = newValue
-                settings.save()
-            }
-        )
-    }
-}
-
-struct AboutView: View {
-    var isArabic: Bool
-    var updateChecking: Bool = false
-    var onCheckUpdates: () -> Void = {}
-
-    private var appName: String { isArabic ? "فكها" : "Fukaha" }
-    private let siteUrl = URL(string: "https://shenepoy.com")!
-    private static let creditSources: [(englishTitle: String, arabicTitle: String, url: String)] = [
-        ("Lexedia’s embed fixer list", "قائمة Lexedia لخدمات المعاينة", "https://gist.github.com/Lexedia/bbbde4dbbf628b0bfe8476a96a977a8f"),
-        ("FixTweetBot fixer list", "قائمة FixTweetBot", "https://github.com/Kyrela/FixTweetBot#awesome-fixers"),
-        ("mohsreg’s Discord embed list", "قائمة mohsreg لمعاينات ديسكورد", "https://gist.github.com/mohsreg/927bf8b2092515ee1a8ee88c3e4d2c14"),
-        ("meqativ’s embed fixer list", "قائمة meqativ لخدمات المعاينة", "https://gist.github.com/meqativ/ea15d319f7889a02c893605c62f148c2"),
-        ("Postrediori’s embed list", "قائمة Postrediori", "https://gist.github.com/Postrediori/cc52b0ca054179a91aab2e63582265b6"),
-        ("EmbedFixer plugin", "إضافة EmbedFixer", "https://github.com/k33bs/EmbedFixer"),
-    ]
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(appName)
-                        .font(.largeTitle.bold())
-                    Text(isArabic
-                         ? "فكها يزيل التتبع من روابط التواصل الاجتماعي، ويحوّلها إلى مضيفات مناسبة للمعاينة، أو يحمّل الوسائط لمشاركتها كملف. افتحه من قائمة المشاركة في النظام."
-                         : "Fukaha cleans tracking from social links, rewrites them to embed-friendly hosts, or downloads media to re-share as a file. Open it from the system share sheet.")
-                    Divider()
-                    Link(destination: siteUrl) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(isArabic ? "المطوّر" : "Developer")
-                                .font(.headline)
-                            Text("shenepoy")
-                            Text("shenepoy.com")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Divider()
-                    Text(isArabic
-                         ? "القائمة مجمّعة من عدة مجموعات مجتمعية. شكراً للقائمين عليها ولمؤلفي الخدمات المدرجة."
-                         : "The catalog is assembled from several community collections. Thanks to their maintainers and the authors of the listed services.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    ForEach(Self.creditSources, id: \.url) { source in
-                        Link(destination: URL(string: source.url)!) {
-                            Text(isArabic ? source.arabicTitle : source.englishTitle)
-                                .font(.footnote)
-                        }
-                    }
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(isArabic ? "الإصدار" : "Version")
-                                .font(.headline)
-                            Text(updateChecking
-                                 ? (isArabic ? "جاري فحص إصدارات GitHub…" : "Checking GitHub Releases…")
-                                 : "v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "26.09.0")")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button(action: onCheckUpdates) {
-                            if updateChecking {
-                                ProgressView()
-                            } else {
-                                Image(systemName: "arrow.clockwise")
-                            }
-                        }
-                        .disabled(updateChecking)
-                        .accessibilityLabel(isArabic ? "البحث عن تحديثات" : "Check for updates")
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle(isArabic ? "حول" : "About")
-        }
     }
 }
