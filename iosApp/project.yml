@@ -55,6 +55,9 @@ targets:
       - target: FukahaShare
         embed: true
         codeSign: false
+      - target: FukahaAction
+        embed: true
+        codeSign: false
   FukahaShare:
     type: app-extension
     platform: iOS
@@ -81,6 +84,33 @@ targets:
         CODE_SIGN_ENTITLEMENTS: ../iosShareExtension/FukahaShare.entitlements
         SKIP_INSTALL: YES
         LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks
+  FukahaAction:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ../iosShareExtension/ShareViewController.swift
+      - path: ../iosShareExtension/FukahaShareScreen.swift
+      - path: Fukaha/FukahaDesign.swift
+    preBuildScripts:
+      - name: Compile Kotlin Framework
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          if [ -z "${JAVA_HOME:-}" ] && [ -x /usr/libexec/java_home ]; then
+            export JAVA_HOME="$(/usr/libexec/java_home 2>/dev/null || true)"
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.fukaha.action
+        PRODUCT_NAME: FukahaAction
+        INFOPLIST_FILE: ../iosActionExtension/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "Clean with Fukaha"
+        CODE_SIGN_ENTITLEMENTS: ../iosActionExtension/FukahaAction.entitlements
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: $(inherited) @executable_path/Frameworks @executable_path/../../Frameworks
 schemes:
   Fukaha:
     shared: true
@@ -88,3 +118,4 @@ schemes:
       targets:
         Fukaha: all
         FukahaShare: all
+        FukahaAction: all

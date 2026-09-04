@@ -145,7 +145,7 @@ Open **Fukaha** for Settings / About, or share any social URL into it from anoth
 
 - **Shared core (KMP)** — parse URL → clean → embed rewrite → optional Cobalt download  
 - **Android** — translucent `ShareActivity` + Material 3 Compose Settings  
-- **iOS** — Share Extension calling `FukahaIosFacade` + App Group settings  
+- **iOS** — Share and UI Action Extensions calling `FukahaIosFacade` + App Group settings
 - **Web** — Kotlin/JS calling the same `FukahaBridge`, DOM UI, settings in `localStorage`  
 
 ```text

@@ -1,6 +1,6 @@
 # iOS
 
-Fukaha’s iOS app and Share Extension compile against the KMP `Shared` framework. You do **not** need a paid Apple Developer account to develop or to let CI verify the build.
+Fukaha’s iOS app, Share Extension, and UI Action Extension compile against the KMP `Shared` framework. You do **not** need a paid Apple Developer account to develop or to let CI verify the build.
 
 ## What you can do without paying
 
@@ -31,7 +31,7 @@ CI never signs with a certificate. That is intentional until you have a team.
 
 3. In Xcode, pick an **iPhone Simulator** and press Run. Signing can stay empty.
 
-4. To try a physical device later: Xcode → target **Fukaha** → Signing & Capabilities → Team → **Add an Account…** → your Apple ID. Repeat for **FukahaShare**. This uses a free Personal Team.
+4. To try a physical device later: Xcode → target **Fukaha** → Signing & Capabilities → Team → **Add an Account…** → your Apple ID. Repeat for **FukahaShare** and **FukahaAction**. This uses a free Personal Team.
 
 `Fukaha.xcodeproj` is generated. Do not commit it; regenerate after `project.yml` changes.
 
@@ -55,8 +55,9 @@ Do this on a Mac with Xcode. GitHub cannot create the account for you.
 2. In [Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list):
    - App ID `app.fukaha`
    - App ID `app.fukaha.share`
-   - App Group `group.app.fukaha` — enable it on **both** App IDs
-3. Xcode → both targets → Signing & Capabilities → your **Team**. Enable **App Groups** and tick `group.app.fukaha`.
+   - App ID `app.fukaha.action`
+   - App Group `group.app.fukaha` — enable it on **all three** App IDs
+3. Xcode → all three targets → Signing & Capabilities → your **Team**. Enable **App Groups** and tick `group.app.fukaha`.
 4. Archive → Distribute App → TestFlight or App Store.
 
 A signed device IPA is still not wired into the release workflow. After you have a distribution certificate and profiles, we can add secrets (`IOS_CERTIFICATE_BASE64`, provisioning profiles, and an export options plist) for normal device distribution. Until then, ship signed iOS builds from Xcode on your Mac.
@@ -65,9 +66,10 @@ A signed device IPA is still not wired into the release workflow. After you have
 
 | Path | Role |
 |------|------|
-| `iosApp/project.yml` | XcodeGen spec (app + Share Extension + Kotlin framework script) |
+| `iosApp/project.yml` | XcodeGen spec (app + Share/Action Extensions + Kotlin framework scripts) |
 | `iosApp/Fukaha/` | SwiftUI Settings / About |
 | `iosShareExtension/` | Share sheet extension |
+| `iosActionExtension/` | UI Action extension shown in the share sheet’s Actions area |
 | `shared` | Kotlin Multiplatform `Shared.framework` |
 
 The Xcode pre-build script runs `./gradlew :shared:embedAndSignAppleFrameworkForXcode`. Framework search path:
