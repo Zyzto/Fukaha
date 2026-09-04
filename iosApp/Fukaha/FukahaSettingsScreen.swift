@@ -108,7 +108,7 @@ struct FukahaSettingsScreen: View {
             ),
             (
                 "Clean",
-                "broom",
+                "sparkles",
                 text(en: "Clean link", ar: "رابط نظيف"),
                 text(en: "Share the cleaned URL immediately", ar: "مشاركة الرابط المنظّف فوراً"),
             ),

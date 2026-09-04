@@ -46,7 +46,7 @@ struct FukahaShareScreen: View {
                         )
                         linkBlock(
                             title: text(en: "Cleaned link", ar: "الرابط النظيف"),
-                            icon: "broom",
+                            icon: "sparkles",
                             url: cleanedUrl,
                             onShare: onShareCleaned,
                             onCopy: onCopyCleaned,
@@ -67,7 +67,7 @@ struct FukahaShareScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 16)
-                .padding(.top, 0)
+                .padding(.top, 12)
                 .padding(.bottom, 18)
             }
             .background(Color.fukahaSurfaceLow.ignoresSafeArea())

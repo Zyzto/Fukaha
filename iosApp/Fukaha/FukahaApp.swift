@@ -21,6 +21,7 @@ struct ContentView: View {
     @State private var updateChecking = false
     @State private var updateMessage: String?
     @State private var quickShareText: String?
+    @State private var quickShareDetent: PresentationDetent = .medium
     private let facade = FukahaIosFacade()
 
     private var isArabic: Bool {
@@ -37,7 +38,10 @@ struct ContentView: View {
             settings: $settings,
             onClearCache: clearCache,
             onCheckUpdates: { runUpdateCheck(manual: true) },
-            onOpenQuickLink: { quickShareText = $0 },
+            onOpenQuickLink: {
+                quickShareDetent = .medium
+                quickShareText = $0
+            },
             updateChecking: updateChecking,
         )
         .environment(\.layoutDirection, isArabic ? .rightToLeft : .leftToRight)
@@ -60,14 +64,19 @@ struct ContentView: View {
             get: { quickShareText != nil },
             set: { if !$0 { quickShareText = nil } },
         )) {
-            if let text = quickShareText {
-                FukahaQuickShareView(
-                    text: text,
-                    settings: settings,
-                    facade: facade,
-                    onDismiss: { quickShareText = nil },
-                )
+            Group {
+                if let text = quickShareText {
+                    FukahaQuickShareView(
+                        text: text,
+                        settings: settings,
+                        facade: facade,
+                        onDismiss: { quickShareText = nil },
+                    )
+                }
             }
+            .presentationDetents([.medium, .large], selection: $quickShareDetent)
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(28)
         }
         .alert(updateMessage ?? "", isPresented: Binding(
             get: { updateMessage != nil },
