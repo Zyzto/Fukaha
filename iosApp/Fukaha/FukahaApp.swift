@@ -76,7 +76,6 @@ struct ContentView: View {
             }
             .presentationDetents([.medium, .large], selection: $quickShareDetent)
             .presentationDragIndicator(.visible)
-            .presentationCornerRadius(28)
         }
         .alert(updateMessage ?? "", isPresented: Binding(
             get: { updateMessage != nil },
